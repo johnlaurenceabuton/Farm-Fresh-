@@ -210,6 +210,29 @@
             margin-bottom: 10px;
         }
 
+        .add-crop-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 8px;
+            margin: 10px 0 16px;
+        }
+
+        .add-crop-form input,
+        .add-crop-form button {
+            width: 100%;
+            min-width: 0;
+            margin: 0;
+        }
+
+        .admin-table-wrap {
+            width: 100%;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+
+        .admin-table-wrap table { min-width: 620px; }
+        #admin-crops-table td:last-child { white-space: nowrap; }
+
         .nav-links button {
             display: inline;
             width: auto;
@@ -1479,18 +1502,30 @@
         ✅ Changes Saved! Customers see updates immediately.
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Crop Name</th>
-                <th>Category</th>
-                <th>Price (₱ / kg)</th>
-                <th>Available Stock (kg)</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody id="admin-crops-table"></tbody>
-    </table>
+    <h3>➕ Add Item</h3>
+    <form id="add-crop-form" class="add-crop-form" onsubmit="addCrop(event)">
+        <input type="text" id="new-crop-name" placeholder="Item name" maxlength="60" required>
+        <input type="text" id="new-crop-type" placeholder="Category" maxlength="40" value="Vegetable" required>
+        <input type="number" id="new-crop-price" placeholder="Price per kg" min="0" step="0.01" required>
+        <input type="number" id="new-crop-stock" placeholder="Stock in kg" min="0" step="1" required>
+        <button type="submit" class="sm">Add Item</button>
+    </form>
+
+    <div class="admin-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Crop Name</th>
+                    <th>Category</th>
+                    <th>Price (₱ / kg)</th>
+                    <th>Available Stock (kg)</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="admin-crops-table"></tbody>
+        </table>
+    </div>
 
     <button onclick="saveAdminChanges()">💾 Save All Changes</button>
     <button class="secondary" onclick="resetStock()">🔄 Reset All Stock to Default</button>
@@ -1559,7 +1594,8 @@ const CONFIG = {
         crops: "ff_stock",
         dates: "ff_dates",
         orders: "ff_orders",
-        paymentQrs: "ff_payment_qrs"
+        paymentQrs: "ff_payment_qrs",
+        removedCrops: "ff_removed_crops"
     },
 
     orderTypes: {
@@ -1613,6 +1649,8 @@ let crops = [];
 let reservationDates = [];
 let orders = [];
 let paymentQrs = loadJSON(CONFIG.storage.paymentQrs, {});
+let removedCropIds = loadJSON(CONFIG.storage.removedCrops, []);
+if (!Array.isArray(removedCropIds)) removedCropIds = [];
 
 /* =========================================================
    GENERIC HELPERS
@@ -1690,6 +1728,7 @@ function saveAllData() {
     saveJSON(CONFIG.storage.crops, crops);
     saveJSON(CONFIG.storage.dates, reservationDates);
     saveJSON(CONFIG.storage.orders, orders);
+    saveJSON(CONFIG.storage.removedCrops, removedCropIds);
 }
 
 function loadAllData() {
@@ -1735,11 +1774,12 @@ function normalizeCropData() {
         };
     });
 
+    const removedIds = new Set(Array.isArray(removedCropIds) ? removedCropIds : []);
     const existingCropIds = new Set(normalizedCrops.map(crop => crop.id));
     crops = [
-        ...normalizedCrops,
+        ...normalizedCrops.filter(crop => !removedIds.has(crop.id)),
         ...DEFAULT_CROPS
-            .filter(crop => !existingCropIds.has(crop.id))
+            .filter(crop => !existingCropIds.has(crop.id) && !removedIds.has(crop.id))
             .map(crop => ({ ...crop }))
     ];
 }
@@ -2585,9 +2625,72 @@ function renderAdminTable() {
                             : '<span class="status-low">❌ Hidden</span>'
                     }
                 </td>
+                <td>
+                    <button type="button" class="danger sm" onclick="removeCrop('${escapeHTML(crop.id)}')">Remove</button>
+                </td>
             </tr>
         `;
     }).join("");
+}
+
+function addCrop(event) {
+    event.preventDefault();
+    if (!isAdmin) return alert("Only an administrator can add items.");
+
+    const name = $("new-crop-name").value.trim();
+    const type = $("new-crop-type").value.trim();
+    const pricePerKg = Number($("new-crop-price").value);
+    const available = Math.floor(Number($("new-crop-stock").value));
+
+    if (!name || !type || !Number.isFinite(pricePerKg) || pricePerKg < 0 || !Number.isFinite(available) || available < 0) {
+        return alert("Enter a valid item name, category, price, and stock quantity.");
+    }
+
+    const baseId = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item";
+    let id = baseId;
+    let suffix = 2;
+    while (
+        crops.some(crop => crop.id === id) ||
+        DEFAULT_CROPS.some(crop => crop.id === id) ||
+        removedCropIds.includes(id)
+    ) {
+        id = `${baseId}-${suffix}`;
+        suffix += 1;
+    }
+
+    crops.push({
+        id,
+        name,
+        type,
+        stockPerUnit: available,
+        available,
+        pricePerKg,
+        image: ""
+    });
+    saveAllData();
+    $("add-crop-form").reset();
+    $("new-crop-type").value = "Vegetable";
+    renderAdminTable();
+    renderAdminCropImages();
+    renderCrops();
+}
+
+function removeCrop(cropId) {
+    if (!isAdmin) return alert("Only an administrator can remove items.");
+
+    const crop = crops.find(item => item.id === cropId);
+    if (!crop) return;
+
+    if (!confirm(`Remove ${crop.name} from the current inventory? Existing orders will keep their item details.`)) {
+        return;
+    }
+
+    crops = crops.filter(item => item.id !== cropId);
+    if (!removedCropIds.includes(cropId)) removedCropIds.push(cropId);
+    saveAllData();
+    renderAdminTable();
+    renderAdminCropImages();
+    renderCrops();
 }
 
 function saveAdminChanges() {
