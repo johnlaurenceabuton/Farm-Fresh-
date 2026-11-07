@@ -629,7 +629,7 @@
 
         /* =========================================================
            VEGETABLE FRONT PAGE
-           Click a vegetable card to reveal its price.
+           Hover over or activate a vegetable card to reveal its price.
            ========================================================= */
         .vegetable-grid {
             display: grid;
@@ -679,14 +679,19 @@
         }
 
         .vegetable-price {
-            display: none;
-            margin-top: 12px;
-            padding: 10px;
+            max-height: 0;
+            margin-top: 0;
+            padding: 0 10px;
+            overflow: hidden;
             border-radius: 9px;
             background: #eaf7ea;
             color: #2d7d2d;
             font-size: 20px;
             font-weight: bold;
+            opacity: 0;
+            transform: translateY(-8px) scale(.96);
+            transform-origin: top center;
+            transition: max-height .35s ease, margin .35s ease, padding .35s ease, opacity .25s ease, transform .35s ease;
         }
 
         .vegetable-card.active {
@@ -694,8 +699,12 @@
             box-shadow: 0 5px 16px rgba(76, 175, 80, .18);
         }
 
-        .vegetable-card.active .vegetable-price {
-            display: block;
+        .vegetable-card:is(:hover, :focus-visible, .active) .vegetable-price {
+            max-height: 60px;
+            margin-top: 12px;
+            padding: 10px;
+            opacity: 1;
+            transform: translateY(0) scale(1);
         }
 
         .click-hint {
@@ -704,8 +713,15 @@
             margin-top: 8px;
         }
 
-        .vegetable-card.active .click-hint {
+        .vegetable-card:is(:hover, :focus-visible, .active) .click-hint {
             display: none;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .vegetable-price {
+                transition: none;
+                transform: none;
+            }
         }
 
         .browse-title {
@@ -1733,7 +1749,7 @@ function renderCrops() {
                     ${formatCurrency(crop.pricePerKg)} / kg
                 </div>
 
-                <div class="click-hint">👆 Click to see price</div>
+                <div class="click-hint">Hover or click to see price</div>
 
                 <div class="note">
                     Available: ${crop.available}kg ${lowStock}
