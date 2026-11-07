@@ -666,6 +666,203 @@
             margin-bottom: 12px;
         }
 
+        .vegetable-photo {
+            display: block;
+            width: 100%;
+            aspect-ratio: 3 / 2;
+            margin-bottom: 14px;
+            border-radius: 9px;
+            object-fit: cover;
+            background: #e8efe7;
+        }
+
+        .admin-crop-image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 12px;
+            margin: 14px 0;
+        }
+
+        .admin-crop-image-item {
+            display: grid;
+            grid-template-columns: 96px minmax(0, 1fr);
+            gap: 12px;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #dce5d8;
+            border-radius: 8px;
+            background: rgba(255,255,255,.82);
+        }
+
+        .admin-crop-image-item .admin-photo-placeholder {
+            display: grid;
+            place-items: center;
+            width: 96px;
+            aspect-ratio: 3 / 2;
+            border-radius: 6px;
+            color: #72816f;
+            background: #e8efe7;
+            font-size: 11px;
+        }
+
+        .admin-crop-image-item img {
+            width: 96px;
+            aspect-ratio: 3 / 2;
+            border-radius: 6px;
+            object-fit: cover;
+            background: #e8efe7;
+        }
+
+        .admin-photo-placeholder {
+            display: grid;
+            place-items: center;
+            width: 96px;
+            aspect-ratio: 3 / 2;
+            border-radius: 6px;
+            color: #72816f;
+            background: #e8efe7;
+            font-size: 11px;
+        }
+
+        .admin-crop-image-item label {
+            min-width: 0;
+            margin: 0;
+            color: #35523a;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .admin-crop-image-item input[type="file"] {
+            display: block;
+            width: 100%;
+            margin: 6px 0 0;
+            padding: 5px;
+            font-size: 11px;
+        }
+
+        .payment-options,
+        .payment-qr-admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin: 12px 0;
+        }
+
+        .payment-option {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-height: 54px;
+            margin: 0;
+            padding: 12px;
+            border: 1px solid #cfd9ca;
+            border-radius: 8px;
+            background: rgba(255,255,255,.82);
+        }
+
+        .payment-option input { width: auto; margin: 0; accent-color: #3a8b48; }
+
+        .payment-details {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin: 14px 0;
+            padding: 16px;
+            border: 1px solid #d5e4d2;
+            border-radius: 8px;
+            background: #f5faf2;
+        }
+
+        .payment-qr-preview {
+            flex: 0 0 180px;
+            width: 180px;
+            aspect-ratio: 1;
+            object-fit: contain;
+            padding: 8px;
+            border: 1px solid #d9e2d6;
+            border-radius: 6px;
+            background: #fff;
+        }
+
+        .payment-detail-copy { min-width: 0; }
+        .payment-detail-copy p { margin: 7px 0; }
+        .payment-detail-copy input { max-width: 420px; margin: 8px 0 0; }
+        .payment-qr-empty { display: grid; place-items: center; padding: 14px; color: #777; text-align: center; font-size: 13px; }
+        .payment-total-due { color: #236d34; font-size: 24px; }
+
+        .payment-qr-admin-card {
+            display: grid;
+            grid-template-columns: 90px minmax(0, 1fr);
+            gap: 12px;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #dce5d8;
+            border-radius: 8px;
+            background: rgba(255,255,255,.82);
+        }
+
+        .payment-qr-admin-card img {
+            width: 90px;
+            aspect-ratio: 1;
+            object-fit: contain;
+            padding: 4px;
+            border: 1px solid #e1e7de;
+            border-radius: 5px;
+            background: #fff;
+        }
+
+        .payment-qr-admin-card .admin-qr-placeholder {
+            display: grid;
+            place-items: center;
+            width: 90px;
+            aspect-ratio: 1;
+            padding: 5px;
+            border: 1px solid #e1e7de;
+            border-radius: 5px;
+            color: #777;
+            background: #fff;
+            text-align: center;
+            font-size: 11px;
+        }
+
+        .payment-qr-admin-card .admin-qr-placeholder {
+            display: grid;
+            place-items: center;
+            width: 90px;
+            aspect-ratio: 1;
+            padding: 5px;
+            border: 1px solid #e1e7de;
+            border-radius: 5px;
+            color: #777;
+            background: #fff;
+            text-align: center;
+            font-size: 11px;
+        }
+
+        .payment-qr-admin-card label { min-width: 0; margin: 0; font-size: 13px; font-weight: 700; }
+        .payment-qr-admin-card input[type="file"] { display: block; width: 100%; margin: 6px 0 0; font-size: 11px; }
+
+        @media (max-width: 520px) {
+            .payment-details { align-items: flex-start; flex-direction: column; }
+            .payment-qr-preview { flex-basis: auto; width: min(100%, 220px); }
+        }
+
+        @media print {
+            body * { visibility: hidden !important; }
+            #receipt-section, #receipt-section * { visibility: visible !important; }
+            #receipt-section {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                border: 0;
+                box-shadow: none;
+                background: #fff;
+            }
+            #receipt-section > button { display: none !important; }
+        }
+
         .vegetable-card h3 {
             color: #2d5f2d;
             margin: 0 0 6px;
@@ -1236,6 +1433,10 @@
     <h3>Choose Order Option</h3>
     <div id="order-options"></div>
 
+    <h3>Choose Payment Method</h3>
+    <div id="payment-options" class="payment-options"></div>
+    <div id="payment-details" class="payment-details hidden"></div>
+
     <div id="date-picker" class="hidden">
         <h4>📅 Choose Reservation Date</h4>
         <p class="note">Owner provides available dates (1 week or more from today).</p>
@@ -1257,8 +1458,9 @@
 
 <section id="receipt-section" class="card hidden">
     <h2 class="success">🎉 Order Confirmed!</h2>
-    <p>✅ Verification sent via <strong>Email or SMS</strong></p>
+    <p class="note">Keep this receipt for your records. Payment is confirmed by the store after review.</p>
     <div id="receipt-content" class="receipt-box"></div>
+    <button class="secondary" onclick="window.print()">🖨️ Print Receipt</button>
     <button onclick="backToMenu()">← Back to Menu / Homepage</button>
 </section>
 
@@ -1294,12 +1496,24 @@
 
     <hr>
 
+    <h3>🖼️ Item Photos</h3>
+    <p class="note">Upload one photo for each item. Photos are automatically cropped to a uniform size.</p>
+    <div id="admin-crop-images" class="admin-crop-image-grid"></div>
+
+    <hr>
+
     <h3>📅 Set Reservation Dates</h3>
     <p class="note">Set at least <span id="min-date-label">2</span> available dates.</p>
 
     <div id="admin-dates"></div>
     <button onclick="addDateRow()">+ Add Date</button>
     <button onclick="saveDates()">💾 Save Reservation Dates</button>
+
+    <hr>
+
+    <h3>💳 Online Payment QR Codes</h3>
+    <p class="note">Upload your merchant QR image for each method. Customers will scan it and enter the exact checkout total. Payments must be verified manually.</p>
+    <div id="admin-payment-qrs" class="payment-qr-admin-grid"></div>
 
     <hr>
 
@@ -1343,7 +1557,8 @@ const CONFIG = {
         users: "ff_users",
         crops: "ff_stock",
         dates: "ff_dates",
-        orders: "ff_orders"
+        orders: "ff_orders",
+        paymentQrs: "ff_payment_qrs"
     },
 
     orderTypes: {
@@ -1360,6 +1575,13 @@ const CONFIG = {
             description: "We deliver to your address"
         }
     }
+};
+
+const PAYMENT_METHODS = {
+    gcash: { label: "GCash", online: true },
+    maya: { label: "Maya", online: true },
+    bank: { label: "Bank transfer", online: true },
+    cashier: { label: "Pay in person / Cashier", online: false }
 };
 
 /* =========================================================
@@ -1389,6 +1611,7 @@ let selectedCrops = [];
 let crops = [];
 let reservationDates = [];
 let orders = [];
+let paymentQrs = loadJSON(CONFIG.storage.paymentQrs, {});
 
 /* =========================================================
    GENERIC HELPERS
@@ -1506,7 +1729,8 @@ function normalizeCropData() {
             type: crop.type ?? defaultCrop?.type ?? "Other",
             stockPerUnit: Number(crop.stockPerUnit ?? defaultCrop?.stockPerUnit ?? 0),
             available: Math.max(0, Number(crop.available ?? 0)),
-            pricePerKg: Math.max(0, Number(crop.pricePerKg ?? defaultCrop?.pricePerKg ?? 0))
+            pricePerKg: Math.max(0, Number(crop.pricePerKg ?? defaultCrop?.pricePerKg ?? 0)),
+            image: crop.image || defaultCrop?.image || ""
         };
     });
 
@@ -1710,6 +1934,9 @@ function renderCrops() {
             : "";
 
         const icon = getVegetableIcon(crop.id);
+        const imageMarkup = crop.image
+            ? `<img class="vegetable-photo" src="${escapeHTML(crop.image)}" alt="${escapeHTML(crop.name)}">`
+            : `<div class="vegetable-icon">${icon}</div>`;
 
         return `
             <div
@@ -1721,7 +1948,7 @@ function renderCrops() {
                 onclick="toggleVegetablePrice('${escapeHTML(crop.id)}')"
                 onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleVegetablePrice('${escapeHTML(crop.id)}'); }"
             >
-                <div class="vegetable-icon">${icon}</div>
+                ${imageMarkup}
                 <h3>${escapeHTML(crop.name)}</h3>
                 <div class="vegetable-type">${escapeHTML(crop.type)}</div>
 
@@ -1802,9 +2029,13 @@ function goToSelection() {
     document.querySelectorAll('input[name="orderType"]').forEach(
         radio => radio.checked = false
     );
+    document.querySelectorAll('input[name="paymentMethod"]').forEach(
+        radio => radio.checked = false
+    );
 
     hide("date-picker");
     hide("delivery-address");
+    updatePaymentDetails();
 
     hide("browse-section");
     show("order-section");
@@ -1850,6 +2081,109 @@ function renderOrderOptions() {
         .join("");
 }
 
+function renderPaymentOptions() {
+    $("payment-options").innerHTML = Object.entries(PAYMENT_METHODS)
+        .map(([value, method]) => `
+            <label class="payment-option">
+                <input type="radio" name="paymentMethod" value="${value}" onchange="updatePaymentDetails()">
+                <span>${escapeHTML(method.label)}</span>
+            </label>
+        `)
+        .join("");
+}
+
+function getSelectedPaymentMethod() {
+    return document.querySelector('input[name="paymentMethod"]:checked')?.value || null;
+}
+
+function getPaymentMethodLabel(methodId) {
+    return PAYMENT_METHODS[methodId]?.label || "Not selected";
+}
+
+function updatePaymentDetails() {
+    const methodId = getSelectedPaymentMethod();
+    const details = $("payment-details");
+
+    if (!methodId || !PAYMENT_METHODS[methodId]) {
+        details.innerHTML = "";
+        hide("payment-details");
+        return;
+    }
+
+    show("payment-details");
+
+    if (!PAYMENT_METHODS[methodId].online) {
+        details.innerHTML = `
+            <div class="payment-detail-copy">
+                <strong>Pay in person at the cashier</strong>
+                <p>Your order receipt will show the amount due. Payment is recorded as due until the cashier confirms collection.</p>
+                <p><strong>Amount due:</strong> ${formatCurrency(calculateTotals().amount)}</p>
+            </div>
+        `;
+        return;
+    }
+
+    const qrImage = paymentQrs[methodId];
+    details.innerHTML = `
+        ${qrImage
+            ? `<img class="payment-qr-preview" src="${escapeHTML(qrImage)}" alt="${escapeHTML(PAYMENT_METHODS[methodId].label)} merchant QR code">`
+            : `<div class="payment-qr-preview payment-qr-empty">Admin QR not uploaded</div>`}
+        <div class="payment-detail-copy">
+            <strong>Pay with ${escapeHTML(PAYMENT_METHODS[methodId].label)}</strong>
+            <p>Scan the merchant QR and enter this exact amount in your payment app:</p>
+            <p><strong class="payment-total-due">${formatCurrency(calculateTotals().amount)}</strong></p>
+            ${qrImage
+                ? '<p>Payment will remain pending until the admin verifies the transfer.</p>'
+                : '<p>Online payment is unavailable until the admin uploads this method’s QR code.</p>'}
+            <label for="payment-reference">Payment reference (if available)</label>
+            <input id="payment-reference" type="text" maxlength="100" placeholder="Enter transaction/reference number">
+        </div>
+    `;
+}
+
+function renderAdminPaymentQrs() {
+    const container = $("admin-payment-qrs");
+    if (!container) return;
+
+    container.innerHTML = Object.entries(PAYMENT_METHODS)
+        .filter(([, method]) => method.online)
+        .map(([methodId, method]) => `
+            <div class="payment-qr-admin-card">
+                ${paymentQrs[methodId]
+                    ? `<img src="${escapeHTML(paymentQrs[methodId])}" alt="${escapeHTML(method.label)} QR preview">`
+                    : '<div class="admin-qr-placeholder">No QR yet</div>'}
+                <label>
+                    ${escapeHTML(method.label)} QR
+                    <input type="file" accept="image/*" onchange="handlePaymentQrUpload('${methodId}', this)">
+                </label>
+            </div>
+        `)
+        .join("");
+}
+
+async function handlePaymentQrUpload(methodId, input) {
+    const file = input.files?.[0];
+    if (!file || !PAYMENT_METHODS[methodId]?.online) return;
+
+    try {
+        const qrImage = await resizeImageForStorage(file, 640, 640, false, "image/png");
+        const previousImage = paymentQrs[methodId];
+        paymentQrs[methodId] = qrImage;
+
+        if (!saveJSON(CONFIG.storage.paymentQrs, paymentQrs)) {
+            if (previousImage) paymentQrs[methodId] = previousImage;
+            else delete paymentQrs[methodId];
+        }
+
+        renderAdminPaymentQrs();
+        updatePaymentDetails();
+    } catch (error) {
+        alert(`⚠️ ${error.message}`);
+    } finally {
+        input.value = "";
+    }
+}
+
 function toggleOptions() {
     const selected = document.querySelector('input[name="orderType"]:checked');
     const type = selected?.value;
@@ -1887,9 +2221,18 @@ function getDeliveryAddress(orderType) {
 
 function showOrderSummary() {
     const orderType = getSelectedOrderType();
+    const paymentMethod = getSelectedPaymentMethod();
 
     if (!orderType) {
         return alert("⚠️ Select an order option.");
+    }
+
+    if (!paymentMethod) {
+        return alert("⚠️ Select a payment method.");
+    }
+
+    if (PAYMENT_METHODS[paymentMethod].online && !paymentQrs[paymentMethod]) {
+        return alert(`⚠️ The admin has not uploaded a ${PAYMENT_METHODS[paymentMethod].label} QR code yet. Choose another method or contact the store.`);
     }
 
     if (!selectedCrops.length) {
@@ -1922,6 +2265,9 @@ function showOrderSummary() {
 
         <p><strong>Total Quantity:</strong> ${totals.quantity} kg</p>
         <p><strong>Total Amount:</strong> ${formatCurrency(totals.amount)}</p>
+        <p><strong>Payment Method:</strong> ${escapeHTML(getPaymentMethodLabel(paymentMethod))}</p>
+        <p><strong>Payment Status:</strong> ${PAYMENT_METHODS[paymentMethod].online ? "Awaiting verification" : "Due at cashier"}</p>
+        <p><strong>Payment Reference:</strong> ${escapeHTML($("payment-reference")?.value.trim() || "Not provided")}</p>
         <p><strong>Reservation Date:</strong> ${escapeHTML(selectedDate)}</p>
         <p><strong>Address:</strong> ${escapeHTML(deliveryAddress)}</p>
         <p><strong>Preparation Time:</strong> ${escapeHTML(CONFIG.order.preparationTime)}</p>
@@ -1936,9 +2282,14 @@ function showOrderSummary() {
    ========================================================= */
 function confirmOrder() {
     const orderType = getSelectedOrderType();
+    const paymentMethod = getSelectedPaymentMethod();
 
-    if (!orderType || !currentUser || !selectedCrops.length) {
+    if (!orderType || !paymentMethod || !currentUser || !selectedCrops.length) {
         return alert("⚠️ The order information is incomplete.");
+    }
+
+    if (PAYMENT_METHODS[paymentMethod].online && !paymentQrs[paymentMethod]) {
+        return alert("⚠️ This online payment method is not configured yet.");
     }
 
     /*
@@ -1970,6 +2321,11 @@ function confirmOrder() {
 
     const totals = calculateTotals();
     const transactionId = "TXN-" + Date.now();
+    const paymentReference = $("payment-reference")?.value.trim() || "";
+    const paymentStatus = PAYMENT_METHODS[paymentMethod].online
+        ? "Awaiting verification"
+        : "Due at cashier";
+    const createdAt = new Date().toISOString();
 
     const order = {
         id: transactionId,
@@ -1980,6 +2336,9 @@ function confirmOrder() {
             address: getDeliveryAddress(orderType)
         },
         orderType,
+        paymentMethod,
+        paymentStatus,
+        paymentReference,
         reservationDate: selectedDate,
         items: selectedCrops.map(item => ({
             cropId: item.cropId,
@@ -1994,7 +2353,7 @@ function confirmOrder() {
         deliveryReceipt: null,
         customerReceivedAt: null,
         deliveredAt: null,
-        createdAt: new Date().toISOString()
+        createdAt
     };
 
     orders.unshift(order);
@@ -2002,8 +2361,11 @@ function confirmOrder() {
 
     $("receipt-content").innerHTML = `
         <p><strong>Transaction ID:</strong> ${transactionId}</p>
+        <p><strong>Receipt date:</strong> ${escapeHTML(new Date(createdAt).toLocaleString("en-PH"))}</p>
         <p><strong>Customer:</strong> ${escapeHTML(currentUser.fullName)}</p>
-        <p><strong>Contact:</strong> ${escapeHTML(currentUser.email)}</p>
+        <p><strong>Email:</strong> ${escapeHTML(currentUser.email)}</p>
+        <p><strong>Phone:</strong> ${escapeHTML(currentUser.phone || "N/A")}</p>
+        <p><strong>Address:</strong> ${escapeHTML(getDeliveryAddress(orderType) || "N/A")}</p>
         <hr>
 
         <p><strong>Order Type:</strong> ${escapeHTML(
@@ -2024,6 +2386,10 @@ function confirmOrder() {
             ${formatCurrency(totals.amount)}
         </p>
 
+        <p><strong>Payment method:</strong> ${escapeHTML(getPaymentMethodLabel(paymentMethod))}</p>
+        <p><strong>Payment status:</strong> ${escapeHTML(paymentStatus)}</p>
+        ${paymentReference ? `<p><strong>Payment reference:</strong> ${escapeHTML(paymentReference)}</p>` : ""}
+
         <p><strong>Reservation Date:</strong>
             ${escapeHTML(selectedDate)}
         </p>
@@ -2033,13 +2399,13 @@ function confirmOrder() {
         </p>
 
         <hr>
-        <p class="success">✅ Verified & Confirmed</p>
+        <p class="success">✅ Order recorded — ${escapeHTML(paymentStatus)}</p>
     `;
 
     hide("summary-section");
     show("receipt-section");
 
-    alert("✅ Order Confirmed! Stock updated.");
+    alert(`✅ Order recorded. ${paymentStatus === "Due at cashier" ? "Please pay at the cashier." : "Payment is pending store verification."} Stock updated.`);
 }
 
 function backToMenu() {
@@ -2062,6 +2428,8 @@ function showAdminPanel() {
 
     show("admin-panel");
     renderAdminTable();
+    renderAdminCropImages();
+    renderAdminPaymentQrs();
     renderAdminDates();
     renderAdminOrders();
 }
@@ -2071,6 +2439,87 @@ function showCustomerView() {
 
     hide("admin-panel");
     showBrowse();
+}
+
+function resizeImageForStorage(file, width, height, cropToFill, outputType, quality = .82) {
+    return new Promise((resolve, reject) => {
+        if (!file || !file.type.startsWith("image/")) {
+            reject(new Error("Choose a valid image file."));
+            return;
+        }
+
+        if (file.size > 12 * 1024 * 1024) {
+            reject(new Error("Choose an image smaller than 12 MB."));
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("The image file could not be read."));
+        reader.onload = () => {
+            const image = new Image();
+            image.onerror = () => reject(new Error("The selected file is not a readable image."));
+            image.onload = () => {
+                const canvas = document.createElement("canvas");
+                const scale = cropToFill
+                    ? Math.max(width / image.naturalWidth, height / image.naturalHeight)
+                    : Math.min(1, width / image.naturalWidth, height / image.naturalHeight);
+                const drawWidth = image.naturalWidth * scale;
+                const drawHeight = image.naturalHeight * scale;
+
+                canvas.width = cropToFill ? width : Math.max(1, Math.round(drawWidth));
+                canvas.height = cropToFill ? height : Math.max(1, Math.round(drawHeight));
+
+                const offsetX = cropToFill ? (width - drawWidth) / 2 : 0;
+                const offsetY = cropToFill ? (height - drawHeight) / 2 : 0;
+                const context = canvas.getContext("2d");
+                context.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+                resolve(canvas.toDataURL(outputType, quality));
+            };
+            image.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function renderAdminCropImages() {
+    const container = $("admin-crop-images");
+    if (!container) return;
+
+    container.innerHTML = crops.map((crop, index) => `
+        <div class="admin-crop-image-item">
+            ${crop.image
+                ? `<img src="${escapeHTML(crop.image)}" alt="${escapeHTML(crop.name)} photo preview">`
+                : '<div class="admin-photo-placeholder">No photo</div>'}
+            <label>
+                ${escapeHTML(crop.name)}
+                <input type="file" accept="image/*" data-index="${index}" onchange="handleCropImageUpload(this)">
+            </label>
+        </div>
+    `).join("");
+}
+
+async function handleCropImageUpload(input) {
+    const index = Number(input.dataset.index);
+    const crop = crops[index];
+    const file = input.files?.[0];
+    if (!crop || !file) return;
+
+    try {
+        const image = await resizeImageForStorage(file, 480, 320, true, "image/jpeg", .78);
+        const previousImage = crop.image;
+        crop.image = image;
+
+        if (!saveJSON(CONFIG.storage.crops, crops)) {
+            crop.image = previousImage;
+        }
+
+        renderAdminCropImages();
+        renderCrops();
+    } catch (error) {
+        alert(`⚠️ ${error.message}`);
+    } finally {
+        input.value = "";
+    }
 }
 
 function renderAdminTable() {
@@ -2198,6 +2647,15 @@ function renderAdminOrders() {
             <p><strong>Email:</strong> ${escapeHTML(order.customer.email)}</p>
             ${order.customer.phone ? `<p><strong>Phone:</strong> ${escapeHTML(order.customer.phone)}</p>` : ""}
             <p><strong>Order Type:</strong> ${escapeHTML(CONFIG.orderTypes[order.orderType]?.label || order.orderType)}</p>
+            <p><strong>Payment Method:</strong> ${escapeHTML(getPaymentMethodLabel(order.paymentMethod))}</p>
+            <p><strong>Payment Reference:</strong> ${escapeHTML(order.paymentReference || "Not provided")}</p>
+            <label>Payment Status
+                <select onchange="updatePaymentStatus('${escapeHTML(order.id)}', this.value)">
+                    ${["Awaiting verification", "Due at cashier", "Payment submitted", "Paid", "Refunded"].map(status => `
+                        <option value="${status}" ${(order.paymentStatus || "Awaiting verification") === status ? "selected" : ""}>${status}</option>
+                    `).join("")}
+                </select>
+            </label>
             <p><strong>Date:</strong> ${escapeHTML(order.reservationDate)}</p>
             <p><strong>Address:</strong> ${escapeHTML(order.customer.address || "N/A")}</p>
             <div class="order-admin-items">
@@ -2228,6 +2686,20 @@ function renderAdminOrders() {
     `).join("");
 }
 
+function updatePaymentStatus(orderId, paymentStatus) {
+    if (!isAdmin) {
+        return alert("❌ Only an administrator can update payment status.");
+    }
+
+    const allowedStatuses = ["Awaiting verification", "Due at cashier", "Payment submitted", "Paid", "Refunded"];
+    const order = orders.find(item => item.id === orderId);
+    if (!order || !allowedStatuses.includes(paymentStatus)) return;
+
+    order.paymentStatus = paymentStatus;
+    saveAllData();
+    renderAdminOrders();
+}
+
 function createDeliveryReceipt(order) {
     return {
         receiptId: "DLV-" + Date.now(),
@@ -2238,6 +2710,9 @@ function createDeliveryReceipt(order) {
         items: clone(order.items),
         totalQuantity: order.totalQuantity,
         totalAmount: order.totalAmount,
+        paymentMethod: order.paymentMethod || "",
+        paymentStatus: order.paymentStatus || "",
+        paymentReference: order.paymentReference || "",
         orderType: order.orderType,
         reservationDate: order.reservationDate,
         customer: clone(order.customer)
@@ -2408,6 +2883,9 @@ function renderCustomerOrders() {
                     CONFIG.orderTypes[order.orderType]?.label || order.orderType
                 )}</p>
                 <p><strong>Date:</strong> ${escapeHTML(order.reservationDate)}</p>
+                <p><strong>Payment Method:</strong> ${escapeHTML(getPaymentMethodLabel(order.paymentMethod))}</p>
+                <p><strong>Payment Status:</strong> ${escapeHTML(order.paymentStatus || "Not recorded")}</p>
+                ${order.paymentReference ? `<p><strong>Payment Reference:</strong> ${escapeHTML(order.paymentReference)}</p>` : ""}
                 <p><strong>Total:</strong> ${order.totalQuantity}kg · ${formatCurrency(order.totalAmount)}</p>
 
                 <div class="order-admin-items">
@@ -2426,6 +2904,8 @@ function renderCustomerOrders() {
                                 <p><strong>Prepared by:</strong> ${escapeHTML(receipt.preparedBy)}</p>
                                 <p><strong>Admin email:</strong> ${escapeHTML(receipt.adminEmail)}</p>
                                 <p><strong>Issued:</strong> ${escapeHTML(new Date(receipt.issuedAt).toLocaleString("en-PH"))}</p>
+                                <p><strong>Payment:</strong> ${escapeHTML(getPaymentMethodLabel(receipt.paymentMethod))} — ${escapeHTML(receipt.paymentStatus || "Not recorded")}</p>
+                                ${receipt.paymentReference ? `<p><strong>Payment Reference:</strong> ${escapeHTML(receipt.paymentReference)}</p>` : ""}
                                 <hr>
                                 <p><strong>Items:</strong></p>
                                 ${receipt.items.map(item => `
@@ -2623,6 +3103,7 @@ function initializeAuthInteractions() {
 function initializeApp() {
     loadAllData();
     renderOrderOptions();
+    renderPaymentOptions();
     initializeAuthInteractions();
     setAuthAtmosphere(true);
 
