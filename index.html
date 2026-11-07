@@ -1222,7 +1222,7 @@
 <section id="browse-section" class="card hidden">
     <h2 class="browse-title">🥬 Fresh Vegetables</h2>
     <p class="note browse-subtitle">
-        Welcome to Farm Fresh! Click a vegetable to see its price.
+        Welcome to Farm Fresh! Hover over or click a vegetable to see its price.
     </p>
     <p class="note browse-subtitle">
         Available vegetables have stock greater than
@@ -1394,7 +1394,10 @@ const DEFAULT_CROPS = [
     { id: "beetroot", name: "Beetroot", type: "Root Crop", stockPerUnit: 100, available: 100, pricePerKg: 55 },
     { id: "cabbage",  name: "Cabbage",  type: "Vegetable", stockPerUnit: 50,  available: 50,  pricePerKg: 35 },
     { id: "pechay",   name: "Chinese Pechay", type: "Vegetable", stockPerUnit: 50, available: 50, pricePerKg: 30 },
-    { id: "lettuce",  name: "Lettuce (3 varieties)", type: "Vegetable", stockPerUnit: 50, available: 50, pricePerKg: 60 }
+    { id: "lettuce", name: "Iceberg Lettuce", type: "Vegetable", stockPerUnit: 50, available: 50, pricePerKg: 60 },
+    { id: "romaine-lettuce", name: "Romaine Lettuce", type: "Vegetable", stockPerUnit: 50, available: 50, pricePerKg: 60 },
+    { id: "green-leaf-lettuce", name: "Green Leaf Lettuce", type: "Vegetable", stockPerUnit: 50, available: 50, pricePerKg: 60 },
+    { id: "red-leaf-lettuce", name: "Red Leaf Lettuce", type: "Vegetable", stockPerUnit: 50, available: 50, pricePerKg: 60 }
 ];
 
 /* =========================================================
@@ -1513,18 +1516,28 @@ function loadAllData() {
 }
 
 function normalizeCropData() {
-    crops = crops.map(crop => {
+    const normalizedCrops = crops.map(crop => {
         const defaultCrop = DEFAULT_CROPS.find(item => item.id === crop.id);
 
         return {
             id: crop.id,
-            name: crop.name ?? defaultCrop?.name ?? "Unnamed Crop",
+            name: crop.id === "lettuce"
+                ? "Iceberg Lettuce"
+                : crop.name ?? defaultCrop?.name ?? "Unnamed Crop",
             type: crop.type ?? defaultCrop?.type ?? "Other",
             stockPerUnit: Number(crop.stockPerUnit ?? defaultCrop?.stockPerUnit ?? 0),
             available: Math.max(0, Number(crop.available ?? 0)),
             pricePerKg: Math.max(0, Number(crop.pricePerKg ?? defaultCrop?.pricePerKg ?? 0))
         };
     });
+
+    const existingCropIds = new Set(normalizedCrops.map(crop => crop.id));
+    crops = [
+        ...normalizedCrops,
+        ...DEFAULT_CROPS
+            .filter(crop => !existingCropIds.has(crop.id))
+            .map(crop => ({ ...crop }))
+    ];
 }
 
 function normalizeReservationDates() {
