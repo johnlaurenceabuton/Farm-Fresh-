@@ -796,10 +796,347 @@
             font-weight: 700;
             font-size: 13px;
         }
+
+        @property --edge-angle {
+            syntax: "<angle>";
+            inherits: false;
+            initial-value: 0deg;
+        }
+
+        body.auth-scene {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+            align-content: center;
+            align-items: center;
+            gap: clamp(32px, 7vw, 110px);
+            min-height: 100vh;
+            min-height: 100svh;
+            padding: 48px max(5vw, calc((100vw - 1180px) / 2));
+            overflow-x: hidden;
+            color: #effcf5;
+            background-color: #071411;
+            background-image:
+                linear-gradient(90deg, rgba(4, 17, 15, .88), rgba(5, 20, 17, .56) 52%, rgba(4, 15, 15, .72)),
+                url("https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=2200&q=85");
+            background-position: center;
+            background-size: cover;
+            background-attachment: fixed;
+        }
+
+        body.auth-scene::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(ellipse at 18% 28%, rgba(48, 242, 166, .16), transparent 34%),
+                radial-gradient(ellipse at 78% 78%, rgba(201, 255, 76, .11), transparent 32%);
+        }
+
+        #particle-field { display: none; }
+
+        body.auth-scene #particle-field {
+            display: block;
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        body.auth-scene > *:not(#particle-field) {
+            position: relative;
+            z-index: 2;
+        }
+
+        body.auth-scene .brand-header {
+            grid-column: 1;
+            grid-row: 1;
+            width: auto;
+            margin: 0;
+            padding: 0;
+            text-align: left;
+            color: #effcf5;
+        }
+
+        body.auth-scene .brand-mark {
+            margin: 0 0 14px;
+            filter: drop-shadow(0 0 18px rgba(103, 255, 174, .28));
+        }
+
+        body.auth-scene .brand-mark::before {
+            border-color: #83f8bd;
+            border-right-color: transparent;
+        }
+
+        body.auth-scene .leaf { color: #b8ff6a; }
+
+        body.auth-scene .brand-header h1 {
+            color: #f1fff7;
+            font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+            font-size: 78px;
+            font-weight: 600;
+            letter-spacing: 0;
+            line-height: .96;
+            text-shadow: 0 5px 34px rgba(0, 0, 0, .35);
+        }
+
+        body.auth-scene .brand-subtitle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 20px;
+            color: #c4f36e;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0;
+        }
+
+        body.auth-scene .brand-subtitle::before,
+        body.auth-scene .brand-subtitle::after {
+            content: "";
+            width: 28px;
+            height: 1px;
+            margin: 0;
+            background: rgba(196, 243, 110, .7);
+        }
+
+        body.auth-scene .brand-subtitle::before { display: none; }
+
+        body.auth-scene .brand-tagline {
+            max-width: 390px;
+            margin-top: 18px;
+            color: rgba(237, 250, 243, .82);
+            font-size: 18px;
+            font-style: normal;
+            line-height: 1.55;
+        }
+
+        body.auth-scene .auth-card {
+            --pointer-x: 50%;
+            --pointer-y: 0%;
+            grid-column: 2;
+            grid-row: 1;
+            width: 100%;
+            margin: 0;
+            padding: 36px;
+            position: relative;
+            isolation: isolate;
+            border: 1px solid transparent;
+            border-radius: 18px;
+            background:
+                linear-gradient(145deg, rgba(10, 28, 25, .94), rgba(7, 19, 21, .94)) padding-box,
+                conic-gradient(from var(--edge-angle), rgba(133, 255, 190, .8), rgba(51, 230, 219, .18), rgba(212, 255, 92, .7), rgba(133, 255, 190, .8)) border-box;
+            box-shadow: 0 28px 90px rgba(0, 0, 0, .42), 0 0 42px rgba(64, 255, 183, .08);
+            backdrop-filter: blur(20px);
+            transform: perspective(1100px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+            transform-style: preserve-3d;
+            transition: transform .18s ease, box-shadow .3s ease;
+            animation: edge-orbit 12s linear infinite;
+        }
+
+        body.auth-scene #auth-section {
+            width: 100%;
+        }
+
+        body.auth-scene .auth-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            border-radius: inherit;
+            pointer-events: none;
+            background: radial-gradient(360px circle at var(--pointer-x) var(--pointer-y), rgba(91, 255, 190, .12), transparent 70%);
+        }
+
+        body.auth-scene .auth-card > * {
+            position: relative;
+            z-index: 1;
+            transform: translateZ(12px);
+        }
+
+        body.auth-scene .auth-card:hover {
+            box-shadow: 0 34px 100px rgba(0, 0, 0, .5), 0 0 56px rgba(64, 255, 183, .14);
+        }
+
+        body.auth-scene .welcome-icon {
+            border: 1px solid rgba(188, 255, 174, .65);
+            color: #d7ff70;
+            background: radial-gradient(circle at 35% 25%, rgba(160, 255, 183, .24), rgba(31, 83, 61, .22));
+            box-shadow: 0 0 24px rgba(92, 255, 168, .18), inset 0 0 18px rgba(92, 255, 168, .12);
+        }
+
+        body.auth-scene .auth-card h2 {
+            color: #f3fff8;
+            font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+            font-size: 34px;
+            font-weight: 600;
+        }
+
+        body.auth-scene .auth-subtitle {
+            margin-bottom: 25px;
+            color: rgba(230, 245, 237, .7);
+            font-size: 15px;
+        }
+
+        body.auth-scene .auth-input-wrap input {
+            border: 1px solid rgba(190, 226, 209, .2);
+            border-radius: 10px;
+            color: #effcf5;
+            background: rgba(235, 255, 245, .055);
+            transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+        }
+
+        body.auth-scene .auth-input-wrap input::placeholder { color: rgba(226, 242, 233, .52); }
+
+        body.auth-scene .auth-input-wrap input:focus {
+            border-color: rgba(133, 255, 190, .85);
+            background: rgba(235, 255, 245, .09);
+            box-shadow: 0 0 0 3px rgba(82, 255, 181, .12), 0 0 24px rgba(82, 255, 181, .1);
+        }
+
+        body.auth-scene .input-icon { color: #a7f4bd; }
+
+        body.auth-scene .password-toggle,
+        body.auth-scene .password-toggle:hover { color: #c3e9d1 !important; }
+
+        body.auth-scene .login-btn {
+            height: 58px;
+            margin-bottom: 21px;
+            border: 1px solid rgba(222, 255, 139, .62);
+            color: #07190f;
+            background: linear-gradient(105deg, #c8ff6a, #76f5a1 58%, #61f0d7);
+            box-shadow: 0 0 25px rgba(105, 255, 161, .25), inset 0 1px rgba(255, 255, 255, .55);
+            transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+        }
+
+        body.auth-scene .login-btn:hover {
+            filter: brightness(1.08);
+            background: linear-gradient(105deg, #d5ff82, #8affad 58%, #77ffe6);
+            box-shadow: 0 0 34px rgba(105, 255, 161, .4), inset 0 1px rgba(255, 255, 255, .7);
+            transform: translateY(-2px);
+        }
+
+        body.auth-scene .auth-divider { gap: 14px; margin-bottom: 18px; color: rgba(229, 244, 235, .5); }
+        body.auth-scene .auth-divider span { background: rgba(197, 230, 210, .2); }
+        body.auth-scene .auth-divider b { font-size: 12px; font-weight: 600; }
+        body.auth-scene .continue-grid { gap: 12px; }
+
+        body.auth-scene .continue-btn {
+            min-height: 70px;
+            border: 1px solid rgba(183, 238, 204, .2);
+            border-radius: 10px;
+            color: #e3f7ea;
+            background: rgba(226, 255, 237, .055);
+            transition: border-color .2s ease, background .2s ease, transform .2s ease, box-shadow .2s ease;
+        }
+
+        body.auth-scene .continue-btn:hover {
+            border-color: rgba(139, 255, 190, .7);
+            color: #f0fff6;
+            background: rgba(99, 255, 175, .1);
+            box-shadow: 0 0 22px rgba(83, 255, 174, .1);
+            transform: translateY(-3px);
+        }
+
+        body.auth-scene .continue-icon { color: #bcff73; text-shadow: 0 0 15px rgba(190, 255, 106, .45); }
+        body.auth-scene .contact-admin { margin-top: 22px; color: rgba(231, 245, 236, .72); font-size: 14px; }
+
+        body.auth-scene .contact-admin strong,
+        body.auth-scene .text-link,
+        body.auth-scene .text-link:hover { color: #c5f979; }
+
+        body.auth-scene .signup-form { border-color: rgba(197, 230, 210, .18); }
+        body.auth-scene .signup-form h3 { color: #d3ff94; }
+
+        body.auth-scene .signup-form input {
+            border-color: rgba(190, 226, 209, .2);
+            color: #effcf5;
+            background: rgba(235, 255, 245, .055);
+        }
+
+        body.auth-scene .signup-form input::placeholder { color: rgba(226, 242, 233, .52); }
+        body.auth-scene .back-login-btn { border-color: rgba(183, 238, 204, .28); color: #c5f979; }
+        body.auth-scene .back-login-btn:hover { color: #f0fff6; background: rgba(99, 255, 175, .1); }
+
+        @keyframes edge-orbit {
+            to { --edge-angle: 360deg; }
+        }
+
+        @media (max-width: 780px) {
+            body.auth-scene {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 14px;
+                align-content: center;
+                padding: 26px 18px 34px;
+                background-attachment: scroll;
+            }
+
+            body.auth-scene .brand-header {
+                grid-column: 1;
+                grid-row: 1;
+                text-align: center;
+            }
+
+            body.auth-scene .brand-mark {
+                width: 58px;
+                height: 48px;
+                margin: 0 auto 8px;
+                transform: scale(.72);
+                transform-origin: center top;
+            }
+
+            body.auth-scene .brand-header h1 { font-size: 48px; }
+
+            body.auth-scene .brand-subtitle {
+                justify-content: center;
+                margin-top: 10px;
+                font-size: 11px;
+            }
+
+            body.auth-scene .brand-tagline {
+                max-width: 340px;
+                margin: 9px auto 0;
+                font-size: 14px;
+            }
+
+            body.auth-scene .auth-card {
+                grid-column: 1;
+                grid-row: 2;
+                width: min(100%, 460px);
+                justify-self: center;
+                padding: 27px 23px 23px;
+                transform: none;
+            }
+
+            body.auth-scene .auth-card > * { transform: none; }
+        }
+
+        @media (max-width: 380px) {
+            body.auth-scene { padding-right: 12px; padding-left: 12px; }
+            body.auth-scene .auth-card { padding-right: 17px; padding-left: 17px; }
+
+            body.auth-scene .continue-btn {
+                gap: 8px;
+                padding-right: 7px;
+                padding-left: 7px;
+                font-size: 13px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            body.auth-scene .auth-card { animation: none; transition: none; transform: none; }
+            body.auth-scene .auth-card > *,
+            body.auth-scene .continue-btn,
+            body.auth-scene .login-btn { transition: none; transform: none; }
+        }
 </style>
 </head>
 
 <body>
+<canvas id="particle-field" aria-hidden="true"></canvas>
 <header class="brand-header">
     <div class="brand-mark" aria-hidden="true">
         <span class="leaf leaf-one">⌁</span>
@@ -1297,6 +1634,7 @@ function handleLogin(event) {
 }
 
 function postLoginSetup() {
+    setAuthAtmosphere(false);
     loadAllData();
 
     hide("auth-section");
@@ -1318,6 +1656,7 @@ function logout() {
 
     hide("nav-area");
     show("auth-section");
+    setAuthAtmosphere(true);
     hide("header-note");
     hide("admin-panel");
 
@@ -2151,9 +2490,145 @@ function markItemReceived(orderId) {
 /* =========================================================
    UI INITIALIZATION
    ========================================================= */
+let particleFrame = 0;
+let particleNodes = [];
+let particleContext = null;
+let particleWidth = 0;
+let particleHeight = 0;
+const particlePointer = { x: -1000, y: -1000 };
+const reducedMotionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+function resizeParticleField() {
+    if (!document.body.classList.contains("auth-scene")) return;
+
+    const canvas = $("particle-field");
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    particleWidth = window.innerWidth;
+    particleHeight = window.innerHeight;
+    canvas.width = Math.floor(particleWidth * pixelRatio);
+    canvas.height = Math.floor(particleHeight * pixelRatio);
+    particleContext = canvas.getContext("2d");
+    particleContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+    const count = Math.max(28, Math.min(76, Math.floor(particleWidth * particleHeight / 18000)));
+    particleNodes = Array.from({ length: count }, () => ({
+        x: Math.random() * particleWidth,
+        y: Math.random() * particleHeight,
+        vx: (Math.random() - .5) * .34,
+        vy: (Math.random() - .5) * .34,
+        radius: 1 + Math.random() * 1.8,
+        hue: Math.random() > .5 ? 146 : 78
+    }));
+}
+
+function drawParticleField() {
+    if (!document.body.classList.contains("auth-scene") || !particleContext) {
+        particleFrame = 0;
+        return;
+    }
+
+    const context = particleContext;
+    context.clearRect(0, 0, particleWidth, particleHeight);
+    context.globalCompositeOperation = "lighter";
+
+    particleNodes.forEach((node, index) => {
+        node.x += node.vx;
+        node.y += node.vy;
+
+        if (node.x < -8) node.x = particleWidth + 8;
+        if (node.x > particleWidth + 8) node.x = -8;
+        if (node.y < -8) node.y = particleHeight + 8;
+        if (node.y > particleHeight + 8) node.y = -8;
+
+        for (let nextIndex = index + 1; nextIndex < particleNodes.length; nextIndex += 1) {
+            const next = particleNodes[nextIndex];
+            const distance = Math.hypot(node.x - next.x, node.y - next.y);
+
+            if (distance < 128) {
+                context.beginPath();
+                context.strokeStyle = `rgba(112, 255, 195, ${(1 - distance / 128) * .2})`;
+                context.lineWidth = .7;
+                context.moveTo(node.x, node.y);
+                context.lineTo(next.x, next.y);
+                context.stroke();
+            }
+        }
+
+        const pointerDistance = Math.hypot(node.x - particlePointer.x, node.y - particlePointer.y);
+        if (pointerDistance < 150) {
+            context.beginPath();
+            context.strokeStyle = `rgba(204, 255, 105, ${(1 - pointerDistance / 150) * .34})`;
+            context.lineWidth = .8;
+            context.moveTo(node.x, node.y);
+            context.lineTo(particlePointer.x, particlePointer.y);
+            context.stroke();
+        }
+
+        context.beginPath();
+        context.fillStyle = `hsla(${node.hue}, 100%, 72%, .8)`;
+        context.shadowBlur = 15;
+        context.shadowColor = `hsla(${node.hue}, 100%, 66%, .9)`;
+        context.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+        context.fill();
+    });
+
+    context.shadowBlur = 0;
+    context.globalCompositeOperation = "source-over";
+    particleFrame = window.requestAnimationFrame(drawParticleField);
+}
+
+function setAuthAtmosphere(enabled) {
+    document.body.classList.toggle("auth-scene", enabled);
+
+    if (!enabled) {
+        if (particleFrame) window.cancelAnimationFrame(particleFrame);
+        particleFrame = 0;
+        particleContext?.clearRect(0, 0, particleWidth, particleHeight);
+        $("auth-section").style.setProperty("--tilt-x", "0deg");
+        $("auth-section").style.setProperty("--tilt-y", "0deg");
+        return;
+    }
+
+    if (reducedMotionPreference.matches) return;
+    resizeParticleField();
+    if (!particleFrame) particleFrame = window.requestAnimationFrame(drawParticleField);
+}
+
+function initializeAuthInteractions() {
+    const authCard = $("auth-section");
+
+    authCard.addEventListener("pointermove", event => {
+        if (reducedMotionPreference.matches || event.pointerType === "touch") return;
+
+        const bounds = authCard.getBoundingClientRect();
+        const horizontal = (event.clientX - bounds.left) / bounds.width;
+        const vertical = (event.clientY - bounds.top) / bounds.height;
+        authCard.style.setProperty("--pointer-x", `${horizontal * 100}%`);
+        authCard.style.setProperty("--pointer-y", `${vertical * 100}%`);
+        authCard.style.setProperty("--tilt-x", `${(0.5 - vertical) * 5}deg`);
+        authCard.style.setProperty("--tilt-y", `${(horizontal - 0.5) * 6}deg`);
+    });
+
+    authCard.addEventListener("pointerleave", () => {
+        authCard.style.setProperty("--pointer-x", "50%");
+        authCard.style.setProperty("--pointer-y", "0%");
+        authCard.style.setProperty("--tilt-x", "0deg");
+        authCard.style.setProperty("--tilt-y", "0deg");
+    });
+
+    window.addEventListener("pointermove", event => {
+        particlePointer.x = event.clientX;
+        particlePointer.y = event.clientY;
+    }, { passive: true });
+
+    window.addEventListener("resize", resizeParticleField, { passive: true });
+}
+
 function initializeApp() {
     loadAllData();
     renderOrderOptions();
+    initializeAuthInteractions();
+    setAuthAtmosphere(true);
 
     $("prep-time-label").textContent =
         `${CONFIG.order.preparationTime.toUpperCase()} PREPARATION TIME`;
