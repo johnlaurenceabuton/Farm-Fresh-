@@ -1180,7 +1180,7 @@
     <form id="login-form" onsubmit="handleLogin(event)">
         <div class="auth-input-wrap">
             <span class="input-icon">●</span>
-            <input type="email" id="login-email" placeholder="Username" aria-label="Username or email address" required>
+            <input type="text" id="login-email" placeholder="Username" aria-label="Username" autocomplete="username" required>
         </div>
 
         <div class="auth-input-wrap">
@@ -1191,19 +1191,6 @@
 
         <button type="submit" class="login-btn">⇥ &nbsp; LOGIN</button>
     </form>
-
-    <div class="auth-divider"><span></span><b>OR</b><span></span></div>
-
-    <div class="continue-grid">
-        <button type="button" class="continue-btn" onclick="continueAsCustomer()">
-            <span class="continue-icon">●</span>
-            <span>CONTINUE AS<br><strong>CUSTOMER</strong></span>
-        </button>
-        <button type="button" class="continue-btn" onclick="showAdminLogin()">
-            <span class="continue-icon shield">♢</span>
-            <span>CONTINUE AS<br><strong>ADMIN</strong></span>
-        </button>
-    </div>
 
     <p class="contact-admin">Don’t have an account? <button type="button" class="text-link" onclick="showSignup()">Create an account</button></p>
 
@@ -1337,17 +1324,9 @@ const CONFIG = {
     // IMPORTANT: the admin credentials below are fixed for this version.
     accounts: {
         admin: {
-            email: "johnfrancisparon@gmail.com",
-            password: "1234567",
-            fullName: "John Francis Paron",
-            role: "admin"
-        },
-        customer: {
-            email: "johnfrancisparon@gmail.com",
-            password: "1234567",
-            fullName: "John Francis Paron",
-            phone: "",
-            address: "",
+            email: "farmfresh@2026.com",
+            password: "farmfresh2026",
+            fullName: "Farm Fresh Administrator",
             role: "admin"
         }
     },
@@ -1562,18 +1541,6 @@ function showLogin() {
     hide("signup-form");
 }
 
-function continueAsCustomer() {
-    showLogin();
-    $("login-email").focus();
-}
-
-function showAdminLogin() {
-    showLogin();
-    $("login-email").value = CONFIG.accounts.admin.email;
-    $("login-password").value = "";
-    $("login-password").focus();
-}
-
 function togglePasswordVisibility() {
     const field = $("login-password");
     field.type = field.type === "password" ? "text" : "password";
@@ -1592,7 +1559,7 @@ function handleSignup(event) {
         return alert("⚠️ Please complete all required fields.");
     }
 
-    if (email === CONFIG.accounts.admin.email.toLowerCase() || email === CONFIG.accounts.customer.email.toLowerCase()) {
+    if (email === CONFIG.accounts.admin.email.toLowerCase()) {
         return alert(
             "⚠️ This email is reserved for a fixed account.\n" +
             "Please use a different email."
