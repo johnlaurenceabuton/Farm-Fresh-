@@ -1366,6 +1366,7 @@
 
 <div id="nav-area" class="nav-links hidden">
     <span id="user-greeting"></span>
+    <button id="admin-view-toggle" class="sm secondary hidden" onclick="toggleAdminCustomerView()">Admin View</button>
     <button class="sm secondary" onclick="logout()">Logout</button>
 </div>
 
@@ -1859,6 +1860,7 @@ function postLoginSetup() {
 
     hide("auth-section");
     show("nav-area");
+    updateAdminViewToggle();
 
     $("user-greeting").textContent = `👤 ${currentUser.fullName}`;
 
@@ -1875,6 +1877,7 @@ function logout() {
     selectedCrops = [];
 
     hide("nav-area");
+    hide("admin-view-toggle");
     show("auth-section");
     setAuthAtmosphere(true);
     hide("header-note");
@@ -2427,6 +2430,7 @@ function showAdminPanel() {
     ]);
 
     show("admin-panel");
+    updateAdminViewToggle();
     renderAdminTable();
     renderAdminCropImages();
     renderAdminPaymentQrs();
@@ -2439,6 +2443,27 @@ function showCustomerView() {
 
     hide("admin-panel");
     showBrowse();
+    updateAdminViewToggle();
+}
+
+function updateAdminViewToggle() {
+    const toggle = $("admin-view-toggle");
+    if (!toggle) return;
+
+    toggle.classList.toggle("hidden", !isAdmin);
+    toggle.textContent = $("admin-panel").classList.contains("hidden")
+        ? "Admin View"
+        : "Customer View";
+}
+
+function toggleAdminCustomerView() {
+    if (!currentUser || !isAdmin) return;
+
+    if ($("admin-panel").classList.contains("hidden")) {
+        showAdminPanel();
+    } else {
+        showCustomerView();
+    }
 }
 
 function resizeImageForStorage(file, width, height, cropToFill, outputType, quality = .82) {
