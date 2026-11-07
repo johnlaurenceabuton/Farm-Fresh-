@@ -1,0 +1,2179 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farm Fresh E-Commerce — Reusable Version</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: #eef4ec;
+            color: #333;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        header,
+        #auth-section,
+        #browse-section,
+        #order-section,
+        #summary-section,
+        #receipt-section,
+        #admin-panel {
+            width: min(950px, calc(100% - 40px));
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #2d5f2d;
+        }
+
+        header h1 { font-size: 24px; }
+        header p { color: #555; font-style: italic; margin-top: 5px; }
+
+        .card {
+            background: #fff;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        .hidden { display: none !important; }
+
+        h2 {
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 2px solid #e8f5e8;
+            padding-bottom: 8px;
+        }
+
+        h3 { margin: 15px 0 10px; color: #444; font-size: 16px; }
+        h4 { margin: 10px 0; color: #555; }
+
+        input, button {
+            padding: 11px;
+            margin: 6px 4px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 15px;
+        }
+
+        input { width: 100%; }
+
+        button {
+            background: #4caf50;
+            color: #fff;
+            border: 0;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 8px;
+            transition: background .2s, transform .1s;
+        }
+
+        button:hover { background: #45a049; }
+        button:active { transform: scale(.98); }
+        button.danger { background: #e53935; }
+        button.danger:hover { background: #c62828; }
+        button.secondary { background: #607d8b; }
+        button.secondary:hover { background: #546e7a; }
+        button.sm { padding: 6px 10px; font-size: 13px; margin: 2px; }
+
+        label {
+            display: block;
+            margin: 8px 0;
+            cursor: pointer;
+            padding: 4px 0;
+        }
+
+        label input[type="radio"],
+        label input[type="checkbox"] {
+            width: auto;
+            margin-right: 7px;
+        }
+
+        .crop-item {
+            padding: 12px 8px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .crop-item:last-child { border-bottom: 0; }
+
+        .qty-input {
+            width: 90px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .price-tag {
+            color: #2d7d2d;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .summary-box {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #4caf50;
+            margin: 10px 0;
+        }
+
+        .receipt-box {
+            background: #f0fff4;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #4caf50;
+            margin-top: 10px;
+        }
+
+        .note {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .success { color: #2d7d2d; font-weight: bold; }
+        .low-stock { color: #c53030; font-size: 13px; }
+        .status-ok { color: #2d7d2d; font-weight: bold; }
+        .status-low { color: #c53030; font-weight: bold; }
+
+        hr {
+            border: 0;
+            border-top: 1px solid #ddd;
+            margin: 12px 0;
+        }
+
+        .admin-badge {
+            display: inline-block;
+            background: #2d5f2d;
+            color: #fff;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f1f8f1;
+            color: #2d5f2d;
+        }
+
+        .save-msg {
+            background: #e8f5e9;
+            color: #2d7d2d;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            display: none;
+            font-weight: bold;
+        }
+
+        .input-sm {
+            width: 90px;
+            text-align: center;
+        }
+
+        .nav-links {
+            text-align: right;
+            margin-bottom: 10px;
+        }
+
+        .nav-links button {
+            display: inline;
+            width: auto;
+            margin: 0 4px;
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .date-row {
+            display: flex;
+            gap: 8px;
+            margin: 4px 0;
+            align-items: center;
+        }
+
+        .date-row input { flex: 1; }
+
+        .empty-message {
+            text-align: center;
+            padding: 15px;
+            color: #c53030;
+        }
+
+
+        /* =========================================================
+           FARM FRESH REFERENCE DESIGN
+           ========================================================= */
+        body {
+            background: #edf3e9;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .brand-header {
+            width: min(100% - 32px, 1050px);
+            margin: 0 auto;
+            padding: 28px 0 10px;
+            text-align: center;
+            color: #2f762b;
+        }
+
+        .brand-mark {
+            width: 90px;
+            height: 70px;
+            margin: 0 auto -5px;
+            position: relative;
+        }
+
+        .brand-mark::before {
+            content: "";
+            position: absolute;
+            width: 64px;
+            height: 64px;
+            left: 13px;
+            top: 0;
+            border: 4px solid #4b8f39;
+            border-right-color: transparent;
+            border-radius: 50%;
+            transform: rotate(-28deg);
+        }
+
+        .leaf {
+            position: absolute;
+            color: #3d8a32;
+            font-size: 39px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .leaf-one { left: 13px; top: 12px; transform: rotate(35deg); }
+        .leaf-two { left: 39px; top: 2px; transform: rotate(-24deg); }
+
+        .brand-header h1 {
+            font-size: clamp(54px, 7vw, 86px);
+            line-height: .9;
+            margin: 0;
+            color: #2f7c2d;
+            font-family: "Segoe Print", "Brush Script MT", cursive;
+            font-weight: 700;
+            letter-spacing: -3px;
+        }
+
+        .brand-subtitle {
+            margin-top: 12px;
+            font-size: 20px;
+            letter-spacing: 4px;
+            font-weight: 700;
+            color: #357d35;
+        }
+
+        .brand-subtitle::before,
+        .brand-subtitle::after {
+            content: "—";
+            margin: 0 13px;
+            color: #6a9d61;
+        }
+
+        .brand-tagline {
+            margin-top: 17px;
+            font-size: 18px;
+            font-style: italic;
+            color: #242424;
+        }
+
+        .brand-header .note {
+            display: none;
+        }
+
+        .auth-card {
+            width: min(100% - 32px, 620px);
+            margin: 8px auto 48px;
+            padding: 40px 52px 31px;
+            border-radius: 23px;
+            background: rgba(255, 255, 255, .91);
+            border: 1px solid rgba(255,255,255,.92);
+            box-shadow: 0 15px 42px rgba(45, 67, 39, .19);
+            backdrop-filter: blur(4px);
+        }
+
+        .auth-card h2 {
+            border: 0;
+            padding: 0;
+            margin: 0;
+            text-align: center;
+            color: #31772b;
+            font-size: 31px;
+            line-height: 1.1;
+        }
+
+        .auth-subtitle {
+            text-align: center;
+            font-size: 18px;
+            margin: 8px 0 29px;
+            color: #2f2f2f;
+        }
+
+        .welcome-icon {
+            width: 58px;
+            height: 58px;
+            border: 4px dashed #7ca96f;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            margin: 0 auto 9px;
+            color: #39822f;
+            font-size: 29px;
+            background: rgba(239,248,235,.7);
+        }
+
+        .auth-input-wrap {
+            position: relative;
+            margin: 0 0 18px;
+        }
+
+        .auth-input-wrap input {
+            width: 100%;
+            height: 64px;
+            margin: 0;
+            padding: 0 55px 0 67px;
+            border-radius: 12px;
+            border: 1px solid #c8c8c8;
+            background: rgba(255,255,255,.96);
+            color: #333;
+            font-size: 18px;
+            outline: none;
+        }
+
+        .auth-input-wrap input::placeholder {
+            color: #8a8a8a;
+        }
+
+        .auth-input-wrap input:focus {
+            border-color: #4b8f38;
+            box-shadow: 0 0 0 3px rgba(76,143,56,.12);
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 22px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #3c8031;
+            font-size: 25px;
+            z-index: 2;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 38px;
+            padding: 4px;
+            margin: 0;
+            background: transparent !important;
+            color: #777 !important;
+            font-size: 20px;
+            z-index: 2;
+            box-shadow: none;
+        }
+
+        .password-toggle:hover {
+            color: #333 !important;
+            background: transparent !important;
+        }
+
+        .login-btn {
+            width: 100%;
+            height: 62px;
+            margin: 5px 0 25px;
+            border-radius: 11px;
+            background: #348b19;
+            font-size: 18px;
+            letter-spacing: .2px;
+            box-shadow: 0 5px 12px rgba(42,113,27,.22);
+        }
+
+        .login-btn:hover {
+            background: #2d7717;
+        }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin: 0 0 24px;
+            color: #222;
+        }
+
+        .auth-divider span {
+            flex: 1;
+            height: 1px;
+            background: #bdbdbd;
+        }
+
+        .auth-divider b {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .continue-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+        }
+
+        .continue-btn {
+            min-height: 78px;
+            margin: 0;
+            padding: 10px 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            background: rgba(255,255,255,.96);
+            color: #34772c;
+            border: 1px solid #87ad7d;
+            border-radius: 11px;
+            font-size: 15px;
+            line-height: 1.3;
+        }
+
+        .continue-btn:hover {
+            background: #f3faf0;
+            color: #2e6c27;
+        }
+
+        .continue-icon {
+            font-size: 28px;
+            line-height: 1;
+        }
+
+        .continue-icon.shield {
+            font-size: 34px;
+        }
+
+        .contact-admin {
+            text-align: center;
+            margin-top: 27px;
+            font-size: 16px;
+            color: #292929;
+        }
+
+        .contact-admin strong {
+            color: #347c2e;
+        }
+
+        .text-link {
+            display: inline;
+            width: auto;
+            padding: 0;
+            margin: 0;
+            background: transparent;
+            color: #347c2e;
+            font: inherit;
+            font-weight: 700;
+            text-decoration: underline;
+        }
+
+        .text-link:hover {
+            background: transparent;
+            color: #245b20;
+        }
+
+        .signup-form {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+
+        .signup-form h3 {
+            text-align: center;
+            color: #34772c;
+            margin: 0 0 14px;
+            font-size: 22px;
+        }
+
+        .signup-form input {
+            width: 100%;
+            height: 52px;
+            margin: 7px 0;
+            border-radius: 10px;
+            border: 1px solid #c8c8c8;
+            padding: 0 15px;
+            font-size: 16px;
+            background: #fff;
+        }
+
+        .signup-form .login-btn {
+            height: 54px;
+            margin: 12px 0 6px;
+        }
+
+        .back-login-btn {
+            width: 100%;
+            margin: 5px 0 0;
+            background: transparent;
+            color: #34772c;
+            border: 1px solid #87ad7d;
+        }
+
+        .back-login-btn:hover {
+            background: #f3faf0;
+            color: #2e6c27;
+        }
+
+        /* Home and later pages use the same photograph and translucent card style. */
+        #browse-section,
+        #order-section,
+        #summary-section,
+        #receipt-section,
+        #admin-panel {
+            width: min(100% - 32px, 1050px);
+            margin-left: auto;
+            margin-right: auto;
+            background: rgba(255,255,255,.90);
+            border: 1px solid rgba(255,255,255,.78);
+            backdrop-filter: blur(4px);
+            box-shadow: 0 10px 30px rgba(45, 67, 39, .12);
+        }
+
+        #browse-section {
+            margin-bottom: 35px;
+        }
+
+        #browse-section .vegetable-card {
+            background: rgba(255,255,255,.91);
+        }
+
+        #nav-area {
+            width: min(100% - 32px, 1050px);
+            margin: 0 auto 12px;
+        }
+
+        @media (max-width: 650px) {
+            .brand-header {
+                padding-top: 18px;
+            }
+
+            .brand-header h1 {
+                font-size: 50px;
+            }
+
+            .brand-subtitle {
+                font-size: 16px;
+                letter-spacing: 3px;
+            }
+
+            .brand-tagline {
+                font-size: 15px;
+            }
+
+            .auth-card {
+                width: min(100% - 20px, 620px);
+                padding: 30px 20px 25px;
+            }
+
+            .continue-grid {
+                gap: 10px;
+            }
+
+            #browse-section,
+            #order-section,
+            #summary-section,
+            #receipt-section,
+            #admin-panel {
+                width: min(100% - 20px, 1050px);
+            }
+
+            #nav-area {
+                width: min(100% - 20px, 1050px);
+            }
+        }
+
+        /* =========================================================
+           VEGETABLE FRONT PAGE
+           Click a vegetable card to reveal its price.
+           ========================================================= */
+        .vegetable-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 18px;
+            margin-top: 20px;
+        }
+
+        .vegetable-card {
+            background: #fff;
+            border: 2px solid #e6f1e6;
+            border-radius: 14px;
+            padding: 18px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform .2s, box-shadow .2s, border-color .2s;
+            user-select: none;
+        }
+
+        .vegetable-card:hover {
+            transform: translateY(-4px);
+            border-color: #4caf50;
+            box-shadow: 0 6px 18px rgba(45, 95, 45, .15);
+        }
+
+        .vegetable-card:focus {
+            outline: 3px solid rgba(76, 175, 80, .35);
+            outline-offset: 2px;
+        }
+
+        .vegetable-icon {
+            font-size: 58px;
+            line-height: 1;
+            margin-bottom: 12px;
+        }
+
+        .vegetable-card h3 {
+            color: #2d5f2d;
+            margin: 0 0 6px;
+            font-size: 18px;
+        }
+
+        .vegetable-type {
+            color: #777;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .vegetable-price {
+            display: none;
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 9px;
+            background: #eaf7ea;
+            color: #2d7d2d;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .vegetable-card.active {
+            border-color: #4caf50;
+            box-shadow: 0 5px 16px rgba(76, 175, 80, .18);
+        }
+
+        .vegetable-card.active .vegetable-price {
+            display: block;
+        }
+
+        .click-hint {
+            color: #888;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .vegetable-card.active .click-hint {
+            display: none;
+        }
+
+        .browse-title {
+            text-align: center;
+            color: #2d5f2d;
+            margin-bottom: 5px;
+        }
+
+        .browse-subtitle {
+            text-align: center;
+        }
+
+        @media (max-width: 650px) {
+            body { padding: 10px; }
+            .card { padding: 17px; }
+            table { font-size: 13px; }
+            th, td { padding: 7px 4px; }
+            .input-sm { width: 75px; }
+        }
+    
+        .order-admin-card {
+            border: 1px solid #cfd9ca;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 12px 0;
+            background: rgba(255,255,255,.95);
+        }
+        .order-admin-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .order-admin-head select {
+            padding: 8px 10px;
+            border: 1px solid #b8c7b2;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .order-admin-items {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f5f8f3;
+            border-radius: 8px;
+        }
+
+        .delivery-receipt {
+            margin-top: 14px;
+            padding: 16px;
+            border: 2px solid #4caf50;
+            border-radius: 12px;
+            background: #f0fff4;
+        }
+        .delivery-receipt h4 {
+            color: #2d6b2d;
+            margin-bottom: 8px;
+        }
+        .received-badge {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 6px 10px;
+            border-radius: 20px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            font-weight: 700;
+        }
+        .customer-order-card {
+            border: 1px solid #cfd9ca;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 12px 0;
+            background: rgba(255,255,255,.96);
+        }
+        .customer-order-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .status-pill {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            background: #edf5ea;
+            color: #2d6b2d;
+            font-weight: 700;
+            font-size: 13px;
+        }
+</style>
+</head>
+
+<body>
+<header class="brand-header">
+    <div class="brand-mark" aria-hidden="true">
+        <span class="leaf leaf-one">⌁</span>
+        <span class="leaf leaf-two">⌁</span>
+    </div>
+    <h1>Farm Fresh</h1>
+    <div class="brand-subtitle">E-COMMERCE</div>
+    <p class="brand-tagline">Fresh vegetables, straight from our farm to your table</p>
+    <p class="note" id="header-note">
+        All orders require <strong id="prep-time-label">1 WEEK PREPARATION TIME</strong>
+        • Crops unavailable when stock ≤ <strong id="stock-rule-label">15kg</strong>
+    </p>
+</header>
+
+<div id="nav-area" class="nav-links hidden">
+    <span id="user-greeting"></span>
+    <button class="sm secondary" onclick="logout()">Logout</button>
+</div>
+
+<section id="auth-section" class="card auth-card">
+    <div class="welcome-icon" aria-hidden="true">●</div>
+    <h2>Welcome Back!</h2>
+    <p class="auth-subtitle">Please log in to continue</p>
+
+    <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="auth-input-wrap">
+            <span class="input-icon">●</span>
+            <input type="email" id="login-email" placeholder="Username" aria-label="Username or email address" required>
+        </div>
+
+        <div class="auth-input-wrap">
+            <span class="input-icon">▣</span>
+            <input type="password" id="login-password" placeholder="Password" aria-label="Password" required>
+            <button type="button" class="password-toggle" onclick="togglePasswordVisibility()" aria-label="Show or hide password">◉</button>
+        </div>
+
+        <button type="submit" class="login-btn">⇥ &nbsp; LOGIN</button>
+    </form>
+
+    <div class="auth-divider"><span></span><b>OR</b><span></span></div>
+
+    <div class="continue-grid">
+        <button type="button" class="continue-btn" onclick="continueAsCustomer()">
+            <span class="continue-icon">●</span>
+            <span>CONTINUE AS<br><strong>CUSTOMER</strong></span>
+        </button>
+        <button type="button" class="continue-btn" onclick="showAdminLogin()">
+            <span class="continue-icon shield">♢</span>
+            <span>CONTINUE AS<br><strong>ADMIN</strong></span>
+        </button>
+    </div>
+
+    <p class="contact-admin">Don’t have an account? <button type="button" class="text-link" onclick="showSignup()">Create an account</button></p>
+
+    <form id="signup-form" class="hidden signup-form" onsubmit="handleSignup(event)">
+        <h3>Create Your Account</h3>
+        <input type="text" id="fullName" placeholder="Full Name" autocomplete="name" required>
+        <input type="email" id="email" placeholder="Email Address" autocomplete="email" required>
+        <input type="tel" id="phone" placeholder="Phone Number" autocomplete="tel" required>
+        <input type="text" id="address" placeholder="Address" autocomplete="street-address" required>
+        <input type="password" id="password" placeholder="Password" autocomplete="new-password" required>
+        <button type="submit" class="login-btn">CREATE ACCOUNT</button>
+        <button type="button" class="back-login-btn" onclick="showLogin()">← Back to Login</button>
+    </form>
+</section>
+
+<section id="browse-section" class="card hidden">
+    <h2 class="browse-title">🥬 Fresh Vegetables</h2>
+    <p class="note browse-subtitle">
+        Welcome to Farm Fresh! Click a vegetable to see its price.
+    </p>
+    <p class="note browse-subtitle">
+        Available vegetables have stock greater than
+        <strong><span id="browse-stock-limit">15</span>kg</strong>.
+    </p>
+
+    <div id="crops-list" class="vegetable-grid"></div>
+
+    <button onclick="goToSelection()">Next: Select Vegetables & Quantity →</button>
+    <button class="secondary" onclick="showCustomerOrders()">📦 My Orders & Deliveries</button>
+</section>
+
+<section id="customer-orders-section" class="card hidden">
+    <h2>📦 My Orders & Deliveries</h2>
+    <p class="note">Delivered orders show the receipt prepared by the administrator. Tap <strong>Item Received</strong> to acknowledge receipt; the delivery receipt will then be removed.</p>
+    <div id="customer-orders"></div>
+    <button onclick="showBrowse()">← Back to Shop</button>
+</section>
+
+<section id="order-section" class="card hidden">
+    <h2>🛒 Selected Crops & Quantity</h2>
+    <div id="selected-items"></div>
+
+    <h3>Choose Order Option</h3>
+    <div id="order-options"></div>
+
+    <div id="date-picker" class="hidden">
+        <h4>📅 Choose Reservation Date</h4>
+        <p class="note">Owner provides available dates (1 week or more from today).</p>
+        <div id="dates-list"></div>
+    </div>
+
+    <div id="delivery-address" class="hidden">
+        <input type="text" id="deliv-address" placeholder="Enter delivery address">
+    </div>
+
+    <button onclick="showOrderSummary()">Review Order Summary →</button>
+</section>
+
+<section id="summary-section" class="card hidden">
+    <h2>📋 Order Summary</h2>
+    <div id="summary-content" class="summary-box"></div>
+    <button onclick="confirmOrder()">✅ Confirm Order</button>
+</section>
+
+<section id="receipt-section" class="card hidden">
+    <h2 class="success">🎉 Order Confirmed!</h2>
+    <p>✅ Verification sent via <strong>Email or SMS</strong></p>
+    <div id="receipt-content" class="receipt-box"></div>
+    <button onclick="backToMenu()">← Back to Menu / Homepage</button>
+</section>
+
+<section id="admin-panel" class="card hidden">
+    <h2>🔧 Admin Control Panel</h2>
+    <span class="admin-badge">✅ ADMINISTRATOR MODE — Orders, Prices, Stock & Dates</span>
+
+    <p class="note">
+        <strong>Rule:</strong> Crops auto-hide when stock ≤
+        <span id="admin-stock-limit">15</span>kg.
+        Changes are saved locally.
+    </p>
+
+    <div id="admin-save-msg" class="save-msg">
+        ✅ Changes Saved! Customers see updates immediately.
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Crop Name</th>
+                <th>Category</th>
+                <th>Price (₱ / kg)</th>
+                <th>Available Stock (kg)</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="admin-crops-table"></tbody>
+    </table>
+
+    <button onclick="saveAdminChanges()">💾 Save All Changes</button>
+    <button class="secondary" onclick="resetStock()">🔄 Reset All Stock to Default</button>
+
+    <hr>
+
+    <h3>📅 Set Reservation Dates</h3>
+    <p class="note">Set at least <span id="min-date-label">2</span> available dates.</p>
+
+    <div id="admin-dates"></div>
+    <button onclick="addDateRow()">+ Add Date</button>
+    <button onclick="saveDates()">💾 Save Reservation Dates</button>
+
+    <hr>
+
+    <h3>📦 Customer Orders</h3>
+    <p class="note">Orders submitted by customers appear here. Update the status as you process each order.</p>
+    <div id="admin-orders"></div>
+
+    <hr>
+
+    <button class="secondary" onclick="showCustomerView()">🛒 Switch to Customer View</button>
+</section>
+
+<script>
+"use strict";
+
+/* =========================================================
+   CONFIGURATION
+   Change settings here instead of searching through the code.
+   ========================================================= */
+const CONFIG = {
+    // Reusable account configuration. Change these values when deploying the app.
+    // IMPORTANT: the admin credentials below are fixed for this version.
+    accounts: {
+        admin: {
+            email: "johnfrancisparon@gmail.com",
+            password: "1234567",
+            fullName: "John Francis Paron",
+            role: "admin"
+        },
+        customer: {
+            email: "johnfrancisparon@gmail.com",
+            password: "1234567",
+            fullName: "John Francis Paron",
+            phone: "",
+            address: "",
+            role: "admin"
+        }
+    },
+
+    order: {
+        preparationTime: "1 Week",
+        minimumStock: 15,
+        lowStockWarning: 30,
+        minimumReservationDates: 2,
+        maximumReservationDates: 3
+    },
+
+    storage: {
+        users: "ff_users",
+        crops: "ff_stock",
+        dates: "ff_dates",
+        orders: "ff_orders"
+    },
+
+    orderTypes: {
+        reserve: {
+            label: "🚜 RESERVE",
+            description: "Customer Harvests"
+        },
+        pickup: {
+            label: "📦 PICK UP",
+            description: "Customer picks up order"
+        },
+        delivery: {
+            label: "🚚 DELIVERY",
+            description: "We deliver to your address"
+        }
+    }
+};
+
+/* =========================================================
+   DEFAULT CROPS
+   Add a new crop here and the rest of the app handles it.
+   ========================================================= */
+const DEFAULT_CROPS = [
+    { id: "potato",   name: "Potato",   type: "Root Crop", stockPerUnit: 100, available: 100, pricePerKg: 45 },
+    { id: "carrot",   name: "Carrot",   type: "Root Crop", stockPerUnit: 100, available: 100, pricePerKg: 50 },
+    { id: "radish",   name: "Radish",   type: "Root Crop", stockPerUnit: 100, available: 100, pricePerKg: 40 },
+    { id: "beetroot", name: "Beetroot", type: "Root Crop", stockPerUnit: 100, available: 100, pricePerKg: 55 },
+    { id: "cabbage",  name: "Cabbage",  type: "Vegetable", stockPerUnit: 50,  available: 50,  pricePerKg: 35 },
+    { id: "pechay",   name: "Chinese Pechay", type: "Vegetable", stockPerUnit: 50, available: 50, pricePerKg: 30 },
+    { id: "lettuce",  name: "Lettuce (3 varieties)", type: "Vegetable", stockPerUnit: 50, available: 50, pricePerKg: 60 }
+];
+
+/* =========================================================
+   APPLICATION STATE
+   ========================================================= */
+let users = loadJSON(CONFIG.storage.users, []);
+let currentUser = null;
+let isAdmin = false;
+let selectedCrops = [];
+let crops = [];
+let reservationDates = [];
+let orders = [];
+
+/* =========================================================
+   GENERIC HELPERS
+   ========================================================= */
+function $(id) {
+    return document.getElementById(id);
+}
+
+function show(id) {
+    const element = $(id);
+    if (element) element.classList.remove("hidden");
+}
+
+function hide(id) {
+    const element = $(id);
+    if (element) element.classList.add("hidden");
+}
+
+function hideSections(ids) {
+    ids.forEach(hide);
+}
+
+function loadJSON(key, fallback) {
+    try {
+        const saved = localStorage.getItem(key);
+        return saved ? JSON.parse(saved) : fallback;
+    } catch (error) {
+        console.error(`Could not load ${key}:`, error);
+        return fallback;
+    }
+}
+
+function saveJSON(key, value) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+    } catch (error) {
+        console.error(`Could not save ${key}:`, error);
+        alert("⚠️ Your browser could not save the data.");
+        return false;
+    }
+}
+
+function clone(data) {
+    return JSON.parse(JSON.stringify(data));
+}
+
+function formatCurrency(amount) {
+    return `₱${Number(amount || 0).toLocaleString("en-PH", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+    })}`;
+}
+
+function formatDate(daysAhead) {
+    const date = new Date();
+    date.setDate(date.getDate() + Number(daysAhead));
+    return date.toISOString().split("T")[0];
+}
+
+function escapeHTML(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+/* =========================================================
+   DATA MANAGEMENT
+   ========================================================= */
+function saveAllData() {
+    saveJSON(CONFIG.storage.users, users);
+    saveJSON(CONFIG.storage.crops, crops);
+    saveJSON(CONFIG.storage.dates, reservationDates);
+    saveJSON(CONFIG.storage.orders, orders);
+}
+
+function loadAllData() {
+    const savedCrops = loadJSON(CONFIG.storage.crops, null);
+    const savedDates = loadJSON(CONFIG.storage.dates, null);
+    const savedOrders = loadJSON(CONFIG.storage.orders, null);
+
+    orders = Array.isArray(savedOrders)
+        ? savedOrders.map(order => ({
+            ...order,
+            deliveryReceipt: order.deliveryReceipt ?? null,
+            customerReceivedAt: order.customerReceivedAt ?? null,
+            deliveredAt: order.deliveredAt ?? null
+        }))
+        : [];
+
+    crops = Array.isArray(savedCrops) && savedCrops.length
+        ? savedCrops
+        : clone(DEFAULT_CROPS);
+
+    reservationDates = Array.isArray(savedDates) && savedDates.length
+        ? savedDates.filter(Boolean)
+        : [formatDate(7), formatDate(10), formatDate(14)];
+
+    normalizeCropData();
+    normalizeReservationDates();
+}
+
+function normalizeCropData() {
+    crops = crops.map(crop => {
+        const defaultCrop = DEFAULT_CROPS.find(item => item.id === crop.id);
+
+        return {
+            id: crop.id,
+            name: crop.name ?? defaultCrop?.name ?? "Unnamed Crop",
+            type: crop.type ?? defaultCrop?.type ?? "Other",
+            stockPerUnit: Number(crop.stockPerUnit ?? defaultCrop?.stockPerUnit ?? 0),
+            available: Math.max(0, Number(crop.available ?? 0)),
+            pricePerKg: Math.max(0, Number(crop.pricePerKg ?? defaultCrop?.pricePerKg ?? 0))
+        };
+    });
+}
+
+function normalizeReservationDates() {
+    reservationDates = [...new Set(
+        reservationDates
+            .filter(Boolean)
+            .map(date => String(date))
+    )].sort();
+}
+
+/* =========================================================
+   AUTHENTICATION
+   ========================================================= */
+function showSignup() {
+    show("signup-form");
+    hide("login-form");
+    $("fullName").focus();
+}
+
+function showLogin() {
+    show("login-form");
+    hide("signup-form");
+}
+
+function continueAsCustomer() {
+    showLogin();
+    $("login-email").focus();
+}
+
+function showAdminLogin() {
+    showLogin();
+    $("login-email").value = CONFIG.accounts.admin.email;
+    $("login-password").value = "";
+    $("login-password").focus();
+}
+
+function togglePasswordVisibility() {
+    const field = $("login-password");
+    field.type = field.type === "password" ? "text" : "password";
+}
+
+function handleSignup(event) {
+    event.preventDefault();
+
+    const fullName = $("fullName").value.trim();
+    const email = $("email").value.trim().toLowerCase();
+    const phone = $("phone").value.trim();
+    const address = $("address").value.trim();
+    const password = $("password").value;
+
+    if (!fullName || !email || !phone || !address || !password) {
+        return alert("⚠️ Please complete all required fields.");
+    }
+
+    if (email === CONFIG.accounts.admin.email.toLowerCase() || email === CONFIG.accounts.customer.email.toLowerCase()) {
+        return alert(
+            "⚠️ This email is reserved for a fixed account.\n" +
+            "Please use a different email."
+        );
+    }
+
+    if (users.some(user => user.email.toLowerCase() === email)) {
+        return alert("⚠️ An account with this email already exists. Please Login.");
+    }
+
+    const newUser = {
+        id: "USR-" + Date.now(),
+        fullName,
+        email,
+        phone,
+        address,
+        password
+    };
+
+    users.push(newUser);
+    currentUser = newUser;
+    isAdmin = false;
+
+    saveAllData();
+
+    alert(`✅ Account created successfully! Welcome, ${fullName}.`);
+    postLoginSetup();
+}
+
+function handleLogin(event) {
+    event.preventDefault();
+
+    const email = $("login-email").value.trim();
+    const password = $("login-password").value;
+
+    if (
+        email.toLowerCase() === CONFIG.accounts.admin.email.toLowerCase() &&
+        password === CONFIG.accounts.admin.password
+    ) {
+        isAdmin = true;
+        currentUser = {
+            email: CONFIG.accounts.admin.email,
+            fullName: CONFIG.accounts.admin.fullName || "Administrator",
+            address: "Farm Office"
+        };
+
+        alert("✅ Welcome Administrator!");
+        postLoginSetup();
+        showAdminPanel();
+        return;
+    }
+
+    const user = users.find(
+        item =>
+            item.email.toLowerCase() === email.toLowerCase() &&
+            item.password === password
+    );
+
+    if (!user) {
+        return alert("❌ Invalid email or password.");
+    }
+
+    currentUser = user;
+    isAdmin = false;
+
+    alert(`✅ Welcome back, ${user.fullName}!`);
+    postLoginSetup();
+}
+
+function postLoginSetup() {
+    loadAllData();
+
+    hide("auth-section");
+    show("nav-area");
+
+    $("user-greeting").textContent = `👤 ${currentUser.fullName}`;
+
+    if (!isAdmin) {
+        showBrowse();
+    }
+}
+
+function logout() {
+    if (!confirm("🔓 Logout?")) return;
+
+    currentUser = null;
+    isAdmin = false;
+    selectedCrops = [];
+
+    hide("nav-area");
+    show("auth-section");
+    hide("header-note");
+    hide("admin-panel");
+
+    hideSections([
+        "browse-section",
+        "order-section",
+        "summary-section",
+        "receipt-section",
+        "customer-orders-section"
+    ]);
+
+    $("login-email").value = "";
+    $("login-password").value = "";
+    $("fullName").value = "";
+    $("email").value = "";
+    $("phone").value = "";
+    $("address").value = "";
+    $("password").value = "";
+
+    hide("signup-form");
+    hide("login-form");
+    showLogin();
+    hide("header-note");
+}
+
+/* =========================================================
+   CUSTOMER — BROWSE CROPS
+   ========================================================= */
+function showBrowse() {
+    hideSections(["order-section", "summary-section", "receipt-section", "admin-panel", "customer-orders-section"]);
+    show("browse-section");
+    show("header-note");
+    renderCrops();
+}
+
+function renderCrops() {
+    const list = $("crops-list");
+
+    const availableCrops = crops.filter(
+        crop => crop.available > CONFIG.order.minimumStock
+    );
+
+    if (!availableCrops.length) {
+        list.innerHTML = `
+            <p class="empty-message">
+                No vegetables are available at this time.
+            </p>
+        `;
+        return;
+    }
+
+    list.innerHTML = availableCrops.map(crop => {
+        const lowStock = crop.available <= CONFIG.order.lowStockWarning
+            ? `<span class="low-stock">⚠️ Low Stock</span>`
+            : "";
+
+        const icon = getVegetableIcon(crop.id);
+
+        return `
+            <div
+                class="vegetable-card"
+                data-crop-id="${escapeHTML(crop.id)}"
+                tabindex="0"
+                role="button"
+                aria-label="View price for ${escapeHTML(crop.name)}"
+                onclick="toggleVegetablePrice('${escapeHTML(crop.id)}')"
+                onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleVegetablePrice('${escapeHTML(crop.id)}'); }"
+            >
+                <div class="vegetable-icon">${icon}</div>
+                <h3>${escapeHTML(crop.name)}</h3>
+                <div class="vegetable-type">${escapeHTML(crop.type)}</div>
+
+                <div class="vegetable-price">
+                    ${formatCurrency(crop.pricePerKg)} / kg
+                </div>
+
+                <div class="click-hint">👆 Click to see price</div>
+
+                <div class="note">
+                    Available: ${crop.available}kg ${lowStock}
+                </div>
+
+                <input
+                    type="number"
+                    min="0"
+                    max="${crop.available}"
+                    value="0"
+                    class="qty-input"
+                    data-id="${escapeHTML(crop.id)}"
+                    aria-label="Quantity of ${escapeHTML(crop.name)}"
+                    onclick="event.stopPropagation()"
+                >
+            </div>
+        `;
+    }).join("");
+}
+
+function getVegetableIcon(id) {
+    const icons = {
+        potato: "🥔",
+        carrot: "🥕",
+        radish: "🌱",
+        beetroot: "🫜",
+        cabbage: "🥬",
+        pechay: "🥬",
+        lettuce: "🥬"
+    };
+
+    return icons[id] || "🥦";
+}
+
+function toggleVegetablePrice(cropId) {
+    const card = document.querySelector(
+        `.vegetable-card[data-crop-id="${CSS.escape(cropId)}"]`
+    );
+
+    if (!card) return;
+
+    card.classList.toggle("active");
+}
+function goToSelection() {
+    selectedCrops = [];
+
+    document.querySelectorAll(".qty-input").forEach(input => {
+        const crop = crops.find(item => item.id === input.dataset.id);
+        const quantity = Math.floor(Number(input.value));
+
+        if (!crop || !Number.isFinite(quantity) || quantity <= 0) return;
+
+        const safeQuantity = Math.min(quantity, crop.available);
+
+        selectedCrops.push({
+            cropId: crop.id,
+            cropName: crop.name,
+            quantity: safeQuantity,
+            pricePerKg: crop.pricePerKg
+        });
+    });
+
+    if (!selectedCrops.length) {
+        return alert("⚠️ Select at least one crop.");
+    }
+
+    renderSelectedItems();
+    renderReservationDates();
+
+    document.querySelectorAll('input[name="orderType"]').forEach(
+        radio => radio.checked = false
+    );
+
+    hide("date-picker");
+    hide("delivery-address");
+
+    hide("browse-section");
+    show("order-section");
+}
+
+function renderSelectedItems() {
+    $("selected-items").innerHTML = selectedCrops.map(item => `
+        <p>
+            ✅ ${escapeHTML(item.cropName)}
+            — ${item.quantity}kg × ${formatCurrency(item.pricePerKg)}
+            = <strong>${formatCurrency(item.quantity * item.pricePerKg)}</strong>
+        </p>
+    `).join("");
+}
+
+function renderReservationDates() {
+    $("dates-list").innerHTML = reservationDates.length
+        ? reservationDates.map(date => `
+            <label>
+                <input type="radio" name="resDate" value="${escapeHTML(date)}">
+                ${escapeHTML(date)}
+            </label>
+        `).join("")
+        : "<p>No reservation dates are currently available.</p>";
+}
+
+/* =========================================================
+   ORDER OPTIONS
+   ========================================================= */
+function renderOrderOptions() {
+    $("order-options").innerHTML = Object.entries(CONFIG.orderTypes)
+        .map(([value, option]) => `
+            <label>
+                <input
+                    type="radio"
+                    name="orderType"
+                    value="${escapeHTML(value)}"
+                    onchange="toggleOptions()"
+                >
+                ${option.label} (${option.description})
+            </label>
+        `)
+        .join("");
+}
+
+function toggleOptions() {
+    const selected = document.querySelector('input[name="orderType"]:checked');
+    const type = selected?.value;
+
+    show("date-picker");
+    hide("delivery-address");
+
+    if (type !== "reserve") hide("date-picker");
+    if (type === "delivery") show("delivery-address");
+}
+
+/* =========================================================
+   ORDER SUMMARY
+   ========================================================= */
+function getSelectedOrderType() {
+    return document.querySelector('input[name="orderType"]:checked')?.value || null;
+}
+
+function calculateTotals() {
+    return selectedCrops.reduce(
+        (totals, item) => {
+            totals.quantity += item.quantity;
+            totals.amount += item.quantity * item.pricePerKg;
+            return totals;
+        },
+        { quantity: 0, amount: 0 }
+    );
+}
+
+function getDeliveryAddress(orderType) {
+    if (orderType !== "delivery") return currentUser.address;
+
+    return $("deliv-address").value.trim() || currentUser.address;
+}
+
+function showOrderSummary() {
+    const orderType = getSelectedOrderType();
+
+    if (!orderType) {
+        return alert("⚠️ Select an order option.");
+    }
+
+    if (!selectedCrops.length) {
+        return alert("⚠️ No crops have been selected.");
+    }
+
+    if (orderType === "reserve" && !document.querySelector('input[name="resDate"]:checked')) {
+        return alert("⚠️ Please select a reservation date.");
+    }
+
+    const selectedDate =
+        document.querySelector('input[name="resDate"]:checked')?.value || "N/A";
+
+    const deliveryAddress = getDeliveryAddress(orderType);
+    const totals = calculateTotals();
+    const typeInfo = CONFIG.orderTypes[orderType];
+
+    $("summary-content").innerHTML = `
+        <p><strong>Order Type:</strong> ${typeInfo.label}</p>
+        <hr>
+
+        <p><strong>Items:</strong></p>
+        ${selectedCrops.map(item => `
+            • ${escapeHTML(item.cropName)}:
+            ${item.quantity}kg × ${formatCurrency(item.pricePerKg)}
+            = ${formatCurrency(item.quantity * item.pricePerKg)}
+        `).join("<br>")}
+
+        <hr>
+
+        <p><strong>Total Quantity:</strong> ${totals.quantity} kg</p>
+        <p><strong>Total Amount:</strong> ${formatCurrency(totals.amount)}</p>
+        <p><strong>Reservation Date:</strong> ${escapeHTML(selectedDate)}</p>
+        <p><strong>Address:</strong> ${escapeHTML(deliveryAddress)}</p>
+        <p><strong>Preparation Time:</strong> ${escapeHTML(CONFIG.order.preparationTime)}</p>
+    `;
+
+    hide("order-section");
+    show("summary-section");
+}
+
+/* =========================================================
+   CONFIRM ORDER
+   ========================================================= */
+function confirmOrder() {
+    const orderType = getSelectedOrderType();
+
+    if (!orderType || !currentUser || !selectedCrops.length) {
+        return alert("⚠️ The order information is incomplete.");
+    }
+
+    /*
+       Re-check stock before subtracting it.
+       This prevents invalid quantities if the data changed.
+    */
+    for (const item of selectedCrops) {
+        const crop = crops.find(c => c.id === item.cropId);
+
+        if (!crop) {
+            return alert(`❌ ${item.cropName} is no longer available.`);
+        }
+
+        if (item.quantity > crop.available) {
+            return alert(
+                `❌ Not enough ${item.cropName} in stock.\n` +
+                `Available: ${crop.available}kg`
+            );
+        }
+    }
+
+    const selectedDate =
+        document.querySelector('input[name="resDate"]:checked')?.value || "N/A";
+
+    selectedCrops.forEach(item => {
+        const crop = crops.find(c => c.id === item.cropId);
+        crop.available -= item.quantity;
+    });
+
+    const totals = calculateTotals();
+    const transactionId = "TXN-" + Date.now();
+
+    const order = {
+        id: transactionId,
+        customer: {
+            fullName: currentUser.fullName,
+            email: currentUser.email,
+            phone: currentUser.phone || "",
+            address: getDeliveryAddress(orderType)
+        },
+        orderType,
+        reservationDate: selectedDate,
+        items: selectedCrops.map(item => ({
+            cropId: item.cropId,
+            cropName: item.cropName,
+            quantity: item.quantity,
+            pricePerKg: item.pricePerKg,
+            subtotal: item.quantity * item.pricePerKg
+        })),
+        totalQuantity: totals.quantity,
+        totalAmount: totals.amount,
+        status: "Pending",
+        deliveryReceipt: null,
+        customerReceivedAt: null,
+        deliveredAt: null,
+        createdAt: new Date().toISOString()
+    };
+
+    orders.unshift(order);
+    saveAllData();
+
+    $("receipt-content").innerHTML = `
+        <p><strong>Transaction ID:</strong> ${transactionId}</p>
+        <p><strong>Customer:</strong> ${escapeHTML(currentUser.fullName)}</p>
+        <p><strong>Contact:</strong> ${escapeHTML(currentUser.email)}</p>
+        <hr>
+
+        <p><strong>Order Type:</strong> ${escapeHTML(
+            CONFIG.orderTypes[orderType].label
+        )}</p>
+
+        <p><strong>Items:</strong></p>
+        ${selectedCrops.map(item => `
+            • ${escapeHTML(item.cropName)}:
+            ${item.quantity}kg × ${formatCurrency(item.pricePerKg)}
+            = ${formatCurrency(item.quantity * item.pricePerKg)}
+        `).join("<br>")}
+
+        <hr>
+
+        <p><strong>Total:</strong>
+            ${totals.quantity} kg —
+            ${formatCurrency(totals.amount)}
+        </p>
+
+        <p><strong>Reservation Date:</strong>
+            ${escapeHTML(selectedDate)}
+        </p>
+
+        <p><strong>Preparation Time:</strong>
+            ${escapeHTML(CONFIG.order.preparationTime)}
+        </p>
+
+        <hr>
+        <p class="success">✅ Verified & Confirmed</p>
+    `;
+
+    hide("summary-section");
+    show("receipt-section");
+
+    alert("✅ Order Confirmed! Stock updated.");
+}
+
+function backToMenu() {
+    selectedCrops = [];
+    hideSections(["receipt-section", "summary-section", "order-section"]);
+    showBrowse();
+}
+
+/* =========================================================
+   ADMIN PANEL
+   ========================================================= */
+function showAdminPanel() {
+    hideSections([
+        "browse-section",
+        "order-section",
+        "summary-section",
+        "receipt-section",
+        "customer-orders-section"
+    ]);
+
+    show("admin-panel");
+    renderAdminTable();
+    renderAdminDates();
+    renderAdminOrders();
+}
+
+function showCustomerView() {
+    if (!currentUser || !isAdmin) return;
+
+    hide("admin-panel");
+    showBrowse();
+}
+
+function renderAdminTable() {
+    $("admin-crops-table").innerHTML = crops.map((crop, index) => {
+        const visible = crop.available > CONFIG.order.minimumStock;
+
+        return `
+            <tr>
+                <td><strong>${escapeHTML(crop.name)}</strong></td>
+                <td>${escapeHTML(crop.type)}</td>
+
+                <td>
+                    <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        value="${crop.pricePerKg}"
+                        data-index="${index}"
+                        class="adm-price input-sm"
+                    >
+                </td>
+
+                <td>
+                    <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        value="${crop.available}"
+                        data-index="${index}"
+                        class="adm-stock input-sm"
+                    >
+                </td>
+
+                <td>
+                    ${
+                        visible
+                            ? '<span class="status-ok">✅ Visible</span>'
+                            : '<span class="status-low">❌ Hidden</span>'
+                    }
+                </td>
+            </tr>
+        `;
+    }).join("");
+}
+
+function saveAdminChanges() {
+    document.querySelectorAll(".adm-price").forEach(input => {
+        const index = Number(input.dataset.index);
+
+        if (!crops[index]) return;
+
+        const price = Number(input.value);
+
+        crops[index].pricePerKg =
+            Number.isFinite(price) && price >= 0 ? price : 0;
+    });
+
+    document.querySelectorAll(".adm-stock").forEach(input => {
+        const index = Number(input.dataset.index);
+
+        if (!crops[index]) return;
+
+        const stock = Number(input.value);
+
+        crops[index].available =
+            Number.isFinite(stock) && stock >= 0 ? Math.floor(stock) : 0;
+    });
+
+    saveAllData();
+    renderAdminTable();
+
+    const message = $("admin-save-msg");
+    message.style.display = "block";
+
+    setTimeout(() => {
+        message.style.display = "none";
+    }, 3000);
+}
+
+function resetStock() {
+    if (!confirm("⚠️ Reset all stock quantities to defaults? Prices will be kept.")) {
+        return;
+    }
+
+    crops = crops.map(crop => {
+        const defaultCrop = DEFAULT_CROPS.find(item => item.id === crop.id);
+
+        return {
+            ...crop,
+            available: defaultCrop
+                ? defaultCrop.available
+                : crop.available
+        };
+    });
+
+    saveAllData();
+    renderAdminTable();
+
+    alert("✅ Stock reset successfully.");
+}
+
+/* =========================================================
+   ADMIN — CUSTOMER ORDERS
+   ========================================================= */
+function renderAdminOrders() {
+    const container = $("admin-orders");
+    if (!container) return;
+
+    if (!orders.length) {
+        container.innerHTML = '<p class="empty-message">No customer orders yet.</p>';
+        return;
+    }
+
+    container.innerHTML = orders.map(order => `
+        <div class="order-admin-card">
+            <div class="order-admin-head">
+                <strong>${escapeHTML(order.id)}</strong>
+                <select onchange="updateOrderStatus('${escapeHTML(order.id)}', this.value)">
+                    ${["Pending","Preparing","Ready","Delivered","Completed","Cancelled"].map(status => `
+                        <option value="${status}" ${order.status === status ? "selected" : ""}>${status}</option>
+                    `).join("")}
+                </select>
+            </div>
+            <p><strong>Customer:</strong> ${escapeHTML(order.customer.fullName)}</p>
+            <p><strong>Email:</strong> ${escapeHTML(order.customer.email)}</p>
+            ${order.customer.phone ? `<p><strong>Phone:</strong> ${escapeHTML(order.customer.phone)}</p>` : ""}
+            <p><strong>Order Type:</strong> ${escapeHTML(CONFIG.orderTypes[order.orderType]?.label || order.orderType)}</p>
+            <p><strong>Date:</strong> ${escapeHTML(order.reservationDate)}</p>
+            <p><strong>Address:</strong> ${escapeHTML(order.customer.address || "N/A")}</p>
+            <div class="order-admin-items">
+                ${order.items.map(item => `
+                    <div>${escapeHTML(item.cropName)} — ${item.quantity}kg × ${formatCurrency(item.pricePerKg)} = ${formatCurrency(item.subtotal)}</div>
+                `).join("")}
+            </div>
+            <p><strong>Total:</strong> ${order.totalQuantity}kg · ${formatCurrency(order.totalAmount)}</p>
+
+            ${
+                order.deliveryReceipt
+                    ? `
+                        <div class="delivery-receipt">
+                            <h4>🧾 Delivery Receipt Issued</h4>
+                            <p><strong>Receipt ID:</strong> ${escapeHTML(order.deliveryReceipt.receiptId)}</p>
+                            <p><strong>Issued by:</strong> ${escapeHTML(order.deliveryReceipt.preparedBy)}</p>
+                            <p><strong>Issued at:</strong> ${escapeHTML(new Date(order.deliveryReceipt.issuedAt).toLocaleString("en-PH"))}</p>
+                            ${
+                                order.customerReceivedAt
+                                    ? `<span class="received-badge">✅ Customer received the item</span>`
+                                    : `<span class="status-pill">⏳ Waiting for customer confirmation</span>`
+                            }
+                        </div>
+                    `
+                    : ""
+            }
+        </div>
+    `).join("");
+}
+
+function createDeliveryReceipt(order) {
+    return {
+        receiptId: "DLV-" + Date.now(),
+        transactionId: order.id,
+        preparedBy: CONFIG.accounts.admin.fullName,
+        adminEmail: CONFIG.accounts.admin.email,
+        issuedAt: new Date().toISOString(),
+        items: clone(order.items),
+        totalQuantity: order.totalQuantity,
+        totalAmount: order.totalAmount,
+        orderType: order.orderType,
+        reservationDate: order.reservationDate,
+        customer: clone(order.customer)
+    };
+}
+
+function updateOrderStatus(orderId, status) {
+    if (!isAdmin) {
+        return alert("❌ Only an administrator can update order status.");
+    }
+
+    const order = orders.find(item => item.id === orderId);
+    if (!order) return;
+
+    if (status === "Delivered") {
+        order.status = "Delivered";
+        order.deliveredAt = new Date().toISOString();
+
+        // Automatically create the customer's delivery receipt from this admin action.
+        order.deliveryReceipt = createDeliveryReceipt(order);
+        order.customerReceivedAt = null;
+
+        saveAllData();
+        renderAdminOrders();
+        alert("✅ Item marked as DELIVERED. The delivery receipt is now available to the customer.");
+        return;
+    }
+
+    order.status = status;
+    saveAllData();
+    renderAdminOrders();
+}
+
+/* =========================================================
+   ADMIN — RESERVATION DATES
+   ========================================================= */
+function renderAdminDates() {
+    $("admin-dates").innerHTML = reservationDates.map((date, index) => `
+        <div class="date-row">
+            <input
+                type="date"
+                value="${escapeHTML(date)}"
+                data-index="${index}"
+                class="adm-date"
+            >
+
+            <button
+                type="button"
+                class="danger sm"
+                onclick="removeDateRow(${index})"
+                aria-label="Remove date"
+            >
+                ✕
+            </button>
+        </div>
+    `).join("");
+}
+
+function addDateRow() {
+    if (
+        reservationDates.length >=
+        CONFIG.order.maximumReservationDates
+    ) {
+        return alert(
+            `⚠️ Maximum ${CONFIG.order.maximumReservationDates} reservation dates allowed.`
+        );
+    }
+
+    const existing = new Set(reservationDates);
+    let newDate = formatDate(7);
+
+    while (existing.has(newDate)) {
+        newDate = formatDate(
+            Number(
+                (new Date(newDate) - new Date()) /
+                (1000 * 60 * 60 * 24)
+            ) + 1
+        );
+    }
+
+    reservationDates.push(newDate);
+    normalizeReservationDates();
+    renderAdminDates();
+}
+
+function removeDateRow(index) {
+    if (reservationDates.length <= CONFIG.order.minimumReservationDates) {
+        return alert(
+            `⚠️ Minimum ${CONFIG.order.minimumReservationDates} dates required!`
+        );
+    }
+
+    reservationDates.splice(index, 1);
+    renderAdminDates();
+}
+
+function saveDates() {
+    const dates = Array.from(document.querySelectorAll(".adm-date"))
+        .map(input => input.value)
+        .filter(Boolean);
+
+    const uniqueDates = [...new Set(dates)].sort();
+
+    if (uniqueDates.length < CONFIG.order.minimumReservationDates) {
+        return alert(
+            `⚠️ Set at least ${CONFIG.order.minimumReservationDates} different dates.`
+        );
+    }
+
+    if (uniqueDates.length > CONFIG.order.maximumReservationDates) {
+        return alert(
+            `⚠️ You can set a maximum of ${CONFIG.order.maximumReservationDates} dates.`
+        );
+    }
+
+    reservationDates = uniqueDates;
+    saveAllData();
+    renderAdminDates();
+    renderReservationDates();
+
+    alert("✅ Reservation dates saved!");
+}
+
+/* =========================================================
+   CUSTOMER — ORDERS & DELIVERY RECEIPTS
+   ========================================================= */
+function showCustomerOrders() {
+    if (!currentUser || isAdmin) return;
+
+    hideSections([
+        "browse-section",
+        "order-section",
+        "summary-section",
+        "receipt-section",
+        "admin-panel"
+    ]);
+
+    show("customer-orders-section");
+    renderCustomerOrders();
+}
+
+function renderCustomerOrders() {
+    const container = $("customer-orders");
+    if (!container || !currentUser) return;
+
+    const myOrders = orders.filter(order =>
+        order.customer &&
+        order.customer.email &&
+        order.customer.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+
+    if (!myOrders.length) {
+        container.innerHTML = '<p class="empty-message">You have no orders yet.</p>';
+        return;
+    }
+
+    container.innerHTML = myOrders.map(order => {
+        const receipt = order.deliveryReceipt;
+
+        return `
+            <div class="customer-order-card">
+                <div class="customer-order-head">
+                    <strong>${escapeHTML(order.id)}</strong>
+                    <span class="status-pill">${escapeHTML(order.status)}</span>
+                </div>
+
+                <p><strong>Order Type:</strong> ${escapeHTML(
+                    CONFIG.orderTypes[order.orderType]?.label || order.orderType
+                )}</p>
+                <p><strong>Date:</strong> ${escapeHTML(order.reservationDate)}</p>
+                <p><strong>Total:</strong> ${order.totalQuantity}kg · ${formatCurrency(order.totalAmount)}</p>
+
+                <div class="order-admin-items">
+                    ${order.items.map(item => `
+                        <div>${escapeHTML(item.cropName)} — ${item.quantity}kg × ${formatCurrency(item.pricePerKg)} = ${formatCurrency(item.subtotal)}</div>
+                    `).join("")}
+                </div>
+
+                ${
+                    receipt
+                        ? `
+                            <div class="delivery-receipt">
+                                <h4>🧾 Item Delivered — Delivery Receipt</h4>
+                                <p><strong>Receipt ID:</strong> ${escapeHTML(receipt.receiptId)}</p>
+                                <p><strong>Transaction ID:</strong> ${escapeHTML(receipt.transactionId)}</p>
+                                <p><strong>Prepared by:</strong> ${escapeHTML(receipt.preparedBy)}</p>
+                                <p><strong>Admin email:</strong> ${escapeHTML(receipt.adminEmail)}</p>
+                                <p><strong>Issued:</strong> ${escapeHTML(new Date(receipt.issuedAt).toLocaleString("en-PH"))}</p>
+                                <hr>
+                                <p><strong>Items:</strong></p>
+                                ${receipt.items.map(item => `
+                                    • ${escapeHTML(item.cropName)}:
+                                    ${item.quantity}kg × ${formatCurrency(item.pricePerKg)}
+                                    = ${formatCurrency(item.subtotal)}
+                                `).join("<br>")}
+                                <hr>
+                                <p><strong>Total:</strong> ${receipt.totalQuantity}kg — ${formatCurrency(receipt.totalAmount)}</p>
+
+                                <button onclick="markItemReceived('${escapeHTML(order.id)}')">
+                                    ✅ ITEM RECEIVED
+                                </button>
+                            </div>
+                        `
+                        : order.customerReceivedAt
+                            ? `<span class="received-badge">✅ Item received and delivery receipt removed.</span>`
+                            : ""
+                }
+            </div>
+        `;
+    }).join("");
+}
+
+function markItemReceived(orderId) {
+    if (!currentUser || isAdmin) return;
+
+    const order = orders.find(item =>
+        item.id === orderId &&
+        item.customer &&
+        item.customer.email &&
+        item.customer.email.toLowerCase() === currentUser.email.toLowerCase()
+    );
+
+    if (!order) {
+        return alert("❌ Order not found.");
+    }
+
+    if (order.status !== "Delivered" || !order.deliveryReceipt) {
+        return alert("⚠️ This order does not currently have a delivery receipt.");
+    }
+
+    if (!confirm("Confirm that you received this item? The delivery receipt will be removed.")) {
+        return;
+    }
+
+    order.customerReceivedAt = new Date().toISOString();
+
+    // The receipt is intentionally deleted only after the customer confirms receipt.
+    order.deliveryReceipt = null;
+
+    saveAllData();
+    renderCustomerOrders();
+
+    alert("✅ Item received! The delivery receipt has been removed.");
+}
+
+/* =========================================================
+   UI INITIALIZATION
+   ========================================================= */
+function initializeApp() {
+    loadAllData();
+    renderOrderOptions();
+
+    $("prep-time-label").textContent =
+        `${CONFIG.order.preparationTime.toUpperCase()} PREPARATION TIME`;
+
+    $("stock-rule-label").textContent =
+        `${CONFIG.order.minimumStock}kg`;
+
+    $("browse-stock-limit").textContent =
+        CONFIG.order.minimumStock;
+
+    $("admin-stock-limit").textContent =
+        CONFIG.order.minimumStock;
+
+    $("min-date-label").textContent =
+        CONFIG.order.minimumReservationDates;
+
+    show("login-form");
+}
+
+initializeApp();
+</script>
+</body>
+</html>
