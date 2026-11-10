@@ -424,7 +424,9 @@ async function handleSignup(event) {
             }
             return alert(`⚠️ Could not create account: ${error.message}`);
         }
-        if (!data.session) {
+        if (!data.session && data.user) {
+            $("login-email").value = email;
+            $("login-password").value = "";
             return alert("✅ Account created. Check your email to confirm the account, then log in.");
         }
 
