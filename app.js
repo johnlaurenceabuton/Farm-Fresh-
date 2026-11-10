@@ -73,6 +73,7 @@ let reservationDates = [];
 let orders = [];
 let paymentQrs = {};
 let realtimeChannel = null;
+let signupInProgress = false;
 
 /* =========================================================
    GENERIC HELPERS
@@ -246,6 +247,7 @@ function togglePasswordVisibility() {
 
 async function handleSignup(event) {
     event.preventDefault();
+    if (signupInProgress) return;
 
     const fullName = $("fullName").value.trim();
     const email = $("email").value.trim().toLowerCase();
@@ -261,23 +263,34 @@ async function handleSignup(event) {
         return alert("⚠️ Password must be at least 8 characters.");
     }
 
-    let data, error;
+    signupInProgress = true;
+    const submitButton = $("signup-form").querySelector('[type="submit"]');
+    submitButton.disabled = true;
     try {
-        ({ data, error } = await supabaseClient.auth.signUp({
+        const { data, error } = await supabaseClient.auth.signUp({
             email,
             password,
             options: { data: { full_name: fullName, phone, address } }
-        }));
-    } catch (requestError) {
-        return alert(`⚠️ Account creation failed: ${requestError.message}`);
-    }
-    if (error) return alert(`⚠️ Could not create account: ${error.message}`);
-    if (!data.session) {
-        return alert("✅ Account created. Check your email to confirm the account, then log in.");
-    }
+        });
+        if (error) {
+            const message = error.message.toLowerCase();
+            if (message.includes("email rate limit exceeded")) {
+                return alert("⚠️ Supabase has temporarily limited signup emails. Please stop retrying and try again after the limit resets. To allow customer signups reliably, configure a custom SMTP provider in the Supabase Dashboard under Authentication → SMTP Settings.");
+            }
+            return alert(`⚠️ Could not create account: ${error.message}`);
+        }
+        if (!data.session) {
+            return alert("✅ Account created. Check your email to confirm the account, then log in.");
+        }
 
-    $("login-email").value = email;
-    await completeSupabaseLogin(data.session.user);
+        $("login-email").value = email;
+        await completeSupabaseLogin(data.session.user);
+    } catch (requestError) {
+        alert(`⚠️ Account creation failed: ${requestError.message}`);
+    } finally {
+        signupInProgress = false;
+        submitButton.disabled = false;
+    }
 }
 
 async function handleLogin(event) {

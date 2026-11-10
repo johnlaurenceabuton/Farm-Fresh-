@@ -15,3 +15,7 @@
 5. Customers create their own accounts and use the normal storefront. Customer data and orders are protected by row-level security; only the owner can manage products, inventory, reservation dates, payment QR codes, and all order statuses.
 
 The legacy browser-only accounts, inventory, and orders are not imported. Customer passwords are managed by Supabase Auth and are never saved in browser storage by this app.
+
+## Signup email delivery
+
+Supabase's built-in email service is for testing, only sends to authorized team addresses, and is currently limited to two messages per hour. For customer signups, configure a custom SMTP provider in the project's [Authentication SMTP settings](https://supabase.com/dashboard/project/arbgxvobvvhvxdlpyllp/auth/smtp). Supabase's [SMTP setup guide](https://supabase.com/docs/guides/auth/auth-smtp) lists supported providers and setup details. Do not put SMTP credentials in this repository or the browser app.
