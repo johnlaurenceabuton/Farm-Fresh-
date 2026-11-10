@@ -94,6 +94,54 @@ function hideSections(ids) {
     ids.forEach(hide);
 }
 
+function showPasswordSection() {
+    if (!currentUser) return;
+    hideSections([
+        "browse-section",
+        "order-section",
+        "summary-section",
+        "receipt-section",
+        "customer-orders-section",
+        "admin-panel"
+    ]);
+    show("password-section");
+    $("new-password").value = "";
+    $("confirm-new-password").value = "";
+    $("new-password").focus();
+}
+
+function cancelPasswordUpdate() {
+    if (!currentUser) return;
+    hide("password-section");
+    if (isAdmin) showAdminPanel();
+    else showBrowse();
+}
+
+async function handlePasswordUpdate(event) {
+    event.preventDefault();
+    if (!currentUser) return alert("⚠️ Sign in before setting a password.");
+
+    const password = $("new-password").value;
+    if (password.length < 8) {
+        return alert("⚠️ Password must be at least 8 characters.");
+    }
+    if (password !== $("confirm-new-password").value) {
+        return alert("⚠️ The passwords do not match.");
+    }
+
+    let error;
+    try {
+        ({ error } = await supabaseClient.auth.updateUser({ password }));
+    } catch (requestError) {
+        return alert(`⚠️ Could not update your password: ${requestError.message}`);
+    }
+    if (error) return alert(`⚠️ Could not update your password: ${error.message}`);
+
+    $("password-form").reset();
+    alert("✅ Your password has been set.");
+    cancelPasswordUpdate();
+}
+
 function clone(data) {
     return JSON.parse(JSON.stringify(data));
 }
@@ -355,7 +403,8 @@ async function logout() {
         "order-section",
         "summary-section",
         "receipt-section",
-        "customer-orders-section"
+        "customer-orders-section",
+        "password-section"
     ]);
 
     $("login-email").value = "";
@@ -376,7 +425,7 @@ async function logout() {
    CUSTOMER — BROWSE CROPS
    ========================================================= */
 function showBrowse() {
-    hideSections(["order-section", "summary-section", "receipt-section", "admin-panel", "customer-orders-section"]);
+    hideSections(["order-section", "summary-section", "receipt-section", "admin-panel", "customer-orders-section", "password-section"]);
     show("browse-section");
     show("header-note");
     renderCrops();
@@ -867,7 +916,8 @@ function showAdminPanel() {
         "order-section",
         "summary-section",
         "receipt-section",
-        "customer-orders-section"
+        "customer-orders-section",
+        "password-section"
     ]);
 
     show("admin-panel");

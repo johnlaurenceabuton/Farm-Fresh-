@@ -27,6 +27,7 @@
 <div id="nav-area" class="nav-links hidden">
     <span id="user-greeting"></span>
     <button id="admin-view-toggle" class="sm secondary hidden" onclick="toggleAdminCustomerView()">Admin View</button>
+    <button class="sm secondary" onclick="showPasswordSection()">Set / Change Password</button>
     <button class="sm secondary" onclick="logout()">Logout</button>
 </div>
 
@@ -61,6 +62,17 @@
         <input type="password" id="password" placeholder="Password" autocomplete="new-password" required>
         <button type="submit" class="login-btn">CREATE ACCOUNT</button>
         <button type="button" class="back-login-btn" onclick="showLogin()">← Back to Login</button>
+    </form>
+</section>
+
+<section id="password-section" class="card hidden">
+    <h2>Set Account Password</h2>
+    <p class="note">Choose a password for signing in to Farm Fresh. Use at least 8 characters.</p>
+    <form id="password-form" onsubmit="handlePasswordUpdate(event)">
+        <input type="password" id="new-password" placeholder="New password" autocomplete="new-password" minlength="8" required>
+        <input type="password" id="confirm-new-password" placeholder="Confirm new password" autocomplete="new-password" minlength="8" required>
+        <button type="submit">Save Password</button>
+        <button type="button" class="secondary" onclick="cancelPasswordUpdate()">Cancel</button>
     </form>
 </section>
 
