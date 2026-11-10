@@ -67,13 +67,18 @@ const DEFAULT_CROPS = [
    ========================================================= */
 let currentUser = null;
 let isAdmin = false;
+let isSeller = false;
+let requestedAccountType = "customer";
 let selectedCrops = [];
 let crops = [];
 let reservationDates = [];
 let orders = [];
+let sellerApplication = null;
+let sellerApplications = [];
 let paymentQrs = {};
 let realtimeChannel = null;
 let signupInProgress = false;
+let orderSubmissionInProgress = false;
 
 /* =========================================================
    GENERIC HELPERS
@@ -104,7 +109,9 @@ function showPasswordSection() {
         "summary-section",
         "receipt-section",
         "customer-orders-section",
-        "admin-panel"
+        "admin-panel",
+        "seller-panel",
+        "seller-application-section"
     ]);
     show("password-section");
     $("new-password").value = "";
@@ -116,6 +123,7 @@ function cancelPasswordUpdate() {
     if (!currentUser) return;
     hide("password-section");
     if (isAdmin) showAdminPanel();
+    else if (isSeller) showSellerPanel();
     else showBrowse();
 }
 
@@ -174,14 +182,18 @@ function escapeHTML(value) {
    DATA MANAGEMENT
    ========================================================= */
 async function loadAllData() {
-    const [productsResult, datesResult, ordersResult, paymentResult] = await Promise.all([
+    const sellerApplicationsQuery = isAdmin
+        ? supabaseClient.from("seller_applications").select("*").order("created_at", { ascending: false })
+        : supabaseClient.from("seller_applications").select("*").eq("user_id", currentUser.id).order("created_at", { ascending: false });
+    const [productsResult, datesResult, ordersResult, paymentResult, sellerApplicationsResult] = await Promise.all([
         supabaseClient.from("products").select("*").order("name"),
         supabaseClient.from("reservation_dates").select("available_on").order("available_on"),
         supabaseClient.from("orders").select("*").order("created_at", { ascending: false }),
-        supabaseClient.from("payment_qrs").select("method,image_data")
+        supabaseClient.from("payment_qrs").select("method,image_data"),
+        sellerApplicationsQuery
     ]);
 
-    for (const result of [productsResult, datesResult, ordersResult, paymentResult]) {
+    for (const result of [productsResult, datesResult, ordersResult, paymentResult, sellerApplicationsResult]) {
         if (result.error) throw result.error;
     }
 
@@ -192,7 +204,9 @@ async function loadAllData() {
         stockPerUnit: product.stock_per_unit,
         available: Number(product.stock_kg),
         pricePerKg: Number(product.price_per_kg),
-        image: product.image || ""
+        image: product.image || "",
+        sellerId: product.seller_id,
+        sellerName: product.farm_name || "Farm Fresh"
     }));
     reservationDates = datesResult.data.map(row => row.available_on);
     orders = ordersResult.data.map(order => ({
@@ -211,8 +225,11 @@ async function loadAllData() {
         customerReceivedAt: order.customer_received_at,
         deliveredAt: order.delivered_at,
         createdAt: order.created_at,
-        userId: order.user_id
+        userId: order.user_id,
+        sellerId: order.seller_id
     }));
+    sellerApplications = sellerApplicationsResult.data;
+    sellerApplication = sellerApplications.find(item => item.user_id === currentUser.id) || null;
     paymentQrs = Object.fromEntries(
         paymentResult.data.map(row => [row.method, row.image_data])
     );
@@ -238,6 +255,114 @@ function showSignup() {
 function showLogin() {
     show("login-form");
     hide("signup-form");
+}
+
+function showSellerApplication() {
+    if (!currentUser || isAdmin || isSeller) return;
+    hideSections([
+        "browse-section",
+        "order-section",
+        "summary-section",
+        "receipt-section",
+        "customer-orders-section",
+        "admin-panel",
+        "seller-panel",
+        "password-section"
+    ]);
+    show("seller-application-section");
+    renderSellerApplicationStatus();
+}
+
+function renderSellerApplicationStatus() {
+    const status = $("seller-application-status");
+    const form = $("seller-application-form");
+    if (!status || !form) return;
+
+    if (!sellerApplication) {
+        status.textContent = "No application submitted yet. Your certificate is visible only to you and the owner.";
+        form.classList.remove("hidden");
+        return;
+    }
+
+    const statusLabel = sellerApplication.status.charAt(0).toUpperCase()
+        + sellerApplication.status.slice(1);
+    status.innerHTML = `<strong>Application status:</strong> ${escapeHTML(statusLabel)}`
+        + (sellerApplication.review_notes
+            ? `<p>${escapeHTML(sellerApplication.review_notes)}</p>`
+            : "");
+    form.classList.toggle("hidden", sellerApplication.status !== "rejected");
+}
+
+async function submitSellerApplication(event) {
+    event.preventDefault();
+    if (!currentUser || isAdmin || isSeller) {
+        return alert("Only a buyer account can apply to become a seller.");
+    }
+    if (sellerApplication?.status === "pending" || sellerApplication?.status === "approved") {
+        return alert("You already have an active seller application.");
+    }
+
+    const farmName = $("farm-name").value.trim();
+    const farmDescription = $("farm-description").value.trim();
+    const file = $("farmer-certificate").files?.[0];
+    if (farmName.length < 2 || farmName.length > 100) {
+        return alert("Farm name must be between 2 and 100 characters.");
+    }
+    if (farmDescription.length > 1000) {
+        return alert("Farm description must be no more than 1000 characters.");
+    }
+    if (!file || file.size > 8 * 1024 * 1024) {
+        return alert("Choose a farmer certificate smaller than 8 MB.");
+    }
+
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    const allowedTypes = {
+        pdf: "application/pdf",
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png"
+    };
+    const contentType = allowedTypes[extension];
+    if (!contentType || (file.type && file.type !== contentType)) {
+        return alert("Certificate must be a PDF, JPG, or PNG file.");
+    }
+
+    const certificatePath = `${currentUser.id}/${crypto.randomUUID()}.${extension}`;
+    let uploaded = false;
+    try {
+        const { error: uploadError } = await supabaseClient.storage
+            .from("farmer-certificates")
+            .upload(certificatePath, file, { contentType, upsert: false });
+        if (uploadError) throw uploadError;
+        uploaded = true;
+
+        const { error: insertError } = await supabaseClient
+            .from("seller_applications")
+            .insert({
+                user_id: currentUser.id,
+                farm_name: farmName,
+                farm_description: farmDescription,
+                certificate_path: certificatePath
+            });
+        if (insertError) throw insertError;
+
+        await loadAllData();
+        renderSellerApplicationStatus();
+        $("seller-application-form").reset();
+        alert("✅ Your farmer application was submitted for owner review. Seller access is granted only after approval.");
+    } catch (error) {
+        if (uploaded) {
+            try {
+                const { error: cleanupError } = await supabaseClient.storage
+                    .from("farmer-certificates")
+                    .remove([certificatePath]);
+                if (cleanupError) console.error("Could not remove an unsubmitted certificate upload:", cleanupError);
+            } catch (cleanupError) {
+                console.error("Could not remove an unsubmitted certificate upload:", cleanupError);
+            }
+        }
+        alert(`⚠️ Could not submit your seller application: ${error.message}`);
+    }
 }
 
 function togglePasswordVisibility() {
@@ -270,7 +395,7 @@ async function handleSignup(event) {
         const { data, error } = await supabaseClient.auth.signUp({
             email,
             password,
-            options: { data: { full_name: fullName, phone, address } }
+            options: { data: { full_name: fullName, phone, address, account_type: $("account-type").value } }
         });
         if (error) {
             const message = error.message.toLowerCase();
@@ -349,6 +474,8 @@ async function completeSupabaseLogin(authUser) {
         address: profile.address
     };
     isAdmin = profile.role === "admin";
+    isSeller = profile.role === "seller";
+    requestedAccountType = authUser.user_metadata?.account_type === "seller" ? "seller" : "customer";
     await postLoginSetup();
 }
 
@@ -369,6 +496,9 @@ async function postLoginSetup() {
     $("user-greeting").textContent = `👤 ${currentUser.fullName}`;
     subscribeToRealtimeUpdates();
     if (isAdmin) showAdminPanel();
+    else if (isSeller) showSellerPanel();
+    else if (requestedAccountType === "seller"
+        && (!sellerApplication || sellerApplication.status === "rejected")) showSellerApplication();
     else showBrowse();
 }
 
@@ -380,6 +510,7 @@ function subscribeToRealtimeUpdates() {
         .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, refreshShopData)
         .on("postgres_changes", { event: "*", schema: "public", table: "reservation_dates" }, refreshShopData)
         .on("postgres_changes", { event: "*", schema: "public", table: "payment_qrs" }, refreshShopData)
+        .on("postgres_changes", { event: "*", schema: "public", table: "seller_applications" }, () => refreshShopData(true))
         .subscribe((status, error) => {
             if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
                 console.error("Realtime connection failed:", error || status);
@@ -388,13 +519,34 @@ function subscribeToRealtimeUpdates() {
 }
 
 let refreshInProgress = false;
-async function refreshShopData() {
+async function refreshShopData(refreshAccountRole = false) {
     if (!currentUser || refreshInProgress) return;
     refreshInProgress = true;
     try {
         await loadAllData();
-        if (isAdmin && !$("admin-panel").classList.contains("hidden")) showAdminPanel();
+        if (refreshAccountRole) {
+            const { data: profile, error } = await supabaseClient
+                .from("profiles")
+                .select("role")
+                .eq("id", currentUser.id)
+                .single();
+            if (error) throw error;
+            const wasSeller = isSeller;
+            isSeller = profile.role === "seller";
+            if (isSeller && !wasSeller) {
+                showSellerPanel();
+                return;
+            }
+            if (wasSeller && !isSeller) {
+                showBrowse();
+                return;
+            }
+        }
+        if (isAdmin && !$("admin-panel").classList.contains("hidden")) {
+            showAdminPanel();
+        } else if (isSeller && !$("seller-panel").classList.contains("hidden")) showSellerPanel();
         else if (!$("browse-section").classList.contains("hidden")) renderCrops();
+        else if (!$("seller-application-section").classList.contains("hidden")) renderSellerApplicationStatus();
         else if (!$("customer-orders-section").classList.contains("hidden")) renderCustomerOrders();
     } catch (error) {
         console.error("Realtime data refresh failed:", error);
@@ -419,10 +571,15 @@ async function logout() {
     }
     currentUser = null;
     isAdmin = false;
+    isSeller = false;
+    requestedAccountType = "customer";
+    sellerApplication = null;
+    sellerApplications = [];
     selectedCrops = [];
 
     hide("nav-area");
     hide("admin-view-toggle");
+    hide("seller-view-toggle");
     show("auth-section");
     setAuthAtmosphere(true);
     hide("header-note");
@@ -434,7 +591,9 @@ async function logout() {
         "summary-section",
         "receipt-section",
         "customer-orders-section",
-        "password-section"
+        "password-section",
+        "seller-panel",
+        "seller-application-section"
     ]);
 
     $("login-email").value = "";
@@ -455,9 +614,11 @@ async function logout() {
    CUSTOMER — BROWSE CROPS
    ========================================================= */
 function showBrowse() {
-    hideSections(["order-section", "summary-section", "receipt-section", "admin-panel", "customer-orders-section", "password-section"]);
+    hideSections(["order-section", "summary-section", "receipt-section", "admin-panel", "customer-orders-section", "password-section", "seller-panel", "seller-application-section"]);
     show("browse-section");
     show("header-note");
+    $("apply-seller-button").classList.toggle("hidden", isAdmin || isSeller);
+    updateSellerViewToggle();
     renderCrops();
 }
 
@@ -500,6 +661,7 @@ function renderCrops() {
                 ${imageMarkup}
                 <h3>${escapeHTML(crop.name)}</h3>
                 <div class="vegetable-type">${escapeHTML(crop.type)}</div>
+                <div class="vegetable-type">Farm: ${escapeHTML(crop.sellerName)}</div>
 
                 <div class="vegetable-price">
                     ${formatCurrency(crop.pricePerKg)} / kg
@@ -563,6 +725,8 @@ function goToSelection() {
         selectedCrops.push({
             cropId: crop.id,
             cropName: crop.name,
+            sellerId: crop.sellerId,
+            sellerName: crop.sellerName,
             quantity: safeQuantity,
             pricePerKg: crop.pricePerKg
         });
@@ -810,7 +974,7 @@ function showOrderSummary() {
 
         <p><strong>Items:</strong></p>
         ${selectedCrops.map(item => `
-            • ${escapeHTML(item.cropName)}:
+            • ${escapeHTML(item.cropName)} (${escapeHTML(item.sellerName)}):
             ${item.quantity}kg × ${formatCurrency(item.pricePerKg)}
             = ${formatCurrency(item.quantity * item.pricePerKg)}
         `).join("<br>")}
@@ -835,6 +999,7 @@ function showOrderSummary() {
    CONFIRM ORDER
    ========================================================= */
 async function confirmOrder() {
+    if (orderSubmissionInProgress) return;
     const orderType = getSelectedOrderType();
     const paymentMethod = getSelectedPaymentMethod();
 
@@ -849,72 +1014,87 @@ async function confirmOrder() {
     const selectedDate =
         document.querySelector('input[name="resDate"]:checked')?.value || null;
     const paymentReference = $("payment-reference")?.value.trim() || "";
-    let transactionId, error;
+    orderSubmissionInProgress = true;
+    const confirmButton = $("summary-section").querySelector("button");
+    confirmButton.disabled = true;
     try {
-        ({ data: transactionId, error } = await supabaseClient.rpc("place_farm_fresh_order", {
-            p_order_type: orderType,
-            p_payment_method: paymentMethod,
-            p_payment_reference: paymentReference,
-            p_reservation_date: selectedDate,
-            p_delivery_address: getDeliveryAddress(orderType),
-            p_items: selectedCrops.map(item => ({
-                product_id: item.cropId,
-                quantity: item.quantity
-            }))
-        }));
-    } catch (requestError) {
-        return alert(`❌ Order was not placed: ${requestError.message}`);
-    }
-    if (error) return alert(`❌ Order was not placed: ${error.message}`);
+        let transactionIds, error;
+        try {
+            ({ data: transactionIds, error } = await supabaseClient.rpc("place_farm_fresh_order", {
+                p_order_type: orderType,
+                p_payment_method: paymentMethod,
+                p_payment_reference: paymentReference,
+                p_reservation_date: selectedDate,
+                p_delivery_address: getDeliveryAddress(orderType),
+                p_items: selectedCrops.map(item => ({
+                    product_id: item.cropId,
+                    quantity: item.quantity
+                }))
+            }));
+        } catch (requestError) {
+            return alert(`❌ Order was not placed: ${requestError.message}`);
+        }
+        if (error) return alert(`❌ Order was not placed: ${error.message}`);
+        if (!Array.isArray(transactionIds) || !transactionIds.length) {
+            return alert("❌ The order could not be confirmed. No order IDs were returned; please check My Orders before retrying.");
+        }
 
-    try {
-        await loadAllData();
-    } catch (loadError) {
-        console.error("Order succeeded but refreshed order data failed:", loadError);
-        alert(`✅ Order ${transactionId} was placed. Refresh the page to view the saved receipt.`);
-        return;
-    }
+        try {
+            await loadAllData();
+        } catch (loadError) {
+            console.error("Order succeeded but refreshed order data failed:", loadError);
+            alert(`✅ ${transactionIds.length} seller order(s) were placed. Refresh the page to view the saved receipts.`);
+            return;
+        }
 
-    const order = orders.find(item => item.id === transactionId);
-    if (!order) return alert(`✅ Order ${transactionId} was placed, but its receipt could not be loaded. Open My Orders to view it.`);
-    const totals = { quantity: order.totalQuantity, amount: order.totalAmount };
-    const createdAt = order.createdAt;
-    const paymentStatus = order.paymentStatus;
-    const itemLines = order.items.map(item => `
-        • ${escapeHTML(item.cropName)}:
-        ${item.quantity}kg × ${formatCurrency(item.pricePerKg)}
-        = ${formatCurrency(item.subtotal)}
-    `).join("<br>");
+        const placedOrders = transactionIds.map(id => orders.find(item => item.id === id));
+        if (placedOrders.some(order => !order)) {
+            return alert(`✅ ${transactionIds.length} seller order(s) were placed, but a receipt could not be loaded. Open My Orders to view them.`);
+        }
+        const paymentStatus = placedOrders[0].paymentStatus;
+        const totalQuantity = placedOrders.reduce((sum, order) => sum + order.totalQuantity, 0);
+        const totalAmount = placedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+        const orderReceipts = placedOrders.map(order => `
+        <section class="seller-order-receipt">
+            <h3>${order.sellerId ? `Farm: ${escapeHTML(order.items[0]?.farmName || "Seller")}` : "Farm Fresh"}</h3>
+            <p><strong>Transaction ID:</strong> ${escapeHTML(order.id)}</p>
+            <p><strong>Receipt date:</strong> ${escapeHTML(new Date(order.createdAt).toLocaleString("en-PH"))}</p>
+            <p><strong>Items:</strong></p>
+            ${order.items.map(item => `
+                • ${escapeHTML(item.cropName)}:
+                ${item.quantity}kg × ${formatCurrency(item.pricePerKg)}
+                = ${formatCurrency(item.subtotal)}
+            `).join("<br>")}
+            <p><strong>Seller order total:</strong> ${order.totalQuantity} kg — ${formatCurrency(order.totalAmount)}</p>
+        </section>
+        `).join("");
+        const firstOrder = placedOrders[0];
 
-    $("receipt-content").innerHTML = `
-        <p><strong>Transaction ID:</strong> ${escapeHTML(transactionId)}</p>
-        <p><strong>Receipt date:</strong> ${escapeHTML(new Date(createdAt).toLocaleString("en-PH"))}</p>
-        <p><strong>Customer:</strong> ${escapeHTML(order.customer.fullName)}</p>
-        <p><strong>Email:</strong> ${escapeHTML(order.customer.email)}</p>
-        <p><strong>Phone:</strong> ${escapeHTML(order.customer.phone || "N/A")}</p>
-        <p><strong>Address:</strong> ${escapeHTML(order.customer.address || "N/A")}</p>
+        $("receipt-content").innerHTML = `
+        <p><strong>Customer:</strong> ${escapeHTML(firstOrder.customer.fullName)}</p>
+        <p><strong>Email:</strong> ${escapeHTML(firstOrder.customer.email)}</p>
+        <p><strong>Phone:</strong> ${escapeHTML(firstOrder.customer.phone || "N/A")}</p>
+        <p><strong>Address:</strong> ${escapeHTML(firstOrder.customer.address || "N/A")}</p>
         <hr>
 
         <p><strong>Order Type:</strong> ${escapeHTML(
             CONFIG.orderTypes[orderType].label
         )}</p>
-
-        <p><strong>Items:</strong></p>
-        ${itemLines}
+        ${orderReceipts}
 
         <hr>
 
         <p><strong>Total:</strong>
-            ${totals.quantity} kg —
-            ${formatCurrency(totals.amount)}
+            ${totalQuantity} kg —
+            ${formatCurrency(totalAmount)}
         </p>
 
-        <p><strong>Payment method:</strong> ${escapeHTML(getPaymentMethodLabel(order.paymentMethod))}</p>
+        <p><strong>Payment method:</strong> ${escapeHTML(getPaymentMethodLabel(firstOrder.paymentMethod))}</p>
         <p><strong>Payment status:</strong> ${escapeHTML(paymentStatus)}</p>
-        ${order.paymentReference ? `<p><strong>Payment reference:</strong> ${escapeHTML(order.paymentReference)}</p>` : ""}
+        ${firstOrder.paymentReference ? `<p><strong>Payment reference:</strong> ${escapeHTML(firstOrder.paymentReference)}</p>` : ""}
 
         <p><strong>Reservation Date:</strong>
-            ${escapeHTML(order.reservationDate)}
+            ${escapeHTML(firstOrder.reservationDate)}
         </p>
 
         <p><strong>Preparation Time:</strong>
@@ -923,12 +1103,16 @@ async function confirmOrder() {
 
         <hr>
         <p class="success">✅ Order recorded — ${escapeHTML(paymentStatus)}</p>
-    `;
+        `;
 
-    hide("summary-section");
-    show("receipt-section");
+        hide("summary-section");
+        show("receipt-section");
 
-    alert(`✅ Order recorded. ${paymentStatus === "Due at cashier" ? "Please pay at the cashier." : "Payment is pending store verification."} Stock updated for everyone.`);
+        alert(`✅ ${placedOrders.length} seller order(s) recorded. ${paymentStatus === "Due at cashier" ? "Please pay at the cashier." : "Payment is pending store verification."} Stock updated for everyone.`);
+    } finally {
+        orderSubmissionInProgress = false;
+        confirmButton.disabled = false;
+    }
 }
 
 function backToMenu() {
@@ -947,7 +1131,9 @@ function showAdminPanel() {
         "summary-section",
         "receipt-section",
         "customer-orders-section",
-        "password-section"
+        "password-section",
+        "seller-panel",
+        "seller-application-section"
     ]);
 
     show("admin-panel");
@@ -957,6 +1143,7 @@ function showAdminPanel() {
     renderAdminPaymentQrs();
     renderAdminDates();
     renderAdminOrders();
+    renderSellerApplications();
 }
 
 function showCustomerView() {
@@ -975,6 +1162,22 @@ function updateAdminViewToggle() {
     toggle.textContent = $("admin-panel").classList.contains("hidden")
         ? "Admin View"
         : "Customer View";
+    updateSellerViewToggle();
+}
+
+function updateSellerViewToggle() {
+    const toggle = $("seller-view-toggle");
+    if (!toggle) return;
+    toggle.classList.toggle("hidden", !isSeller);
+    toggle.textContent = $("seller-panel").classList.contains("hidden")
+        ? "Seller View"
+        : "Buyer View";
+}
+
+function toggleSellerBuyerView() {
+    if (!currentUser || !isSeller || isAdmin) return;
+    if ($("seller-panel").classList.contains("hidden")) showSellerPanel();
+    else showBrowse();
 }
 
 function toggleAdminCustomerView() {
@@ -985,6 +1188,243 @@ function toggleAdminCustomerView() {
     } else {
         showCustomerView();
     }
+}
+
+function showSellerPanel() {
+    if (!currentUser || !isSeller || isAdmin) return;
+    hideSections([
+        "browse-section",
+        "order-section",
+        "summary-section",
+        "receipt-section",
+        "customer-orders-section",
+        "admin-panel",
+        "seller-application-section",
+        "password-section"
+    ]);
+    show("seller-panel");
+    updateSellerViewToggle();
+    renderSellerProducts();
+    renderSellerOrders();
+}
+
+function renderSellerProducts() {
+    const table = $("seller-products-table");
+    if (!table) return;
+    const sellerProducts = crops.filter(crop => crop.sellerId === currentUser?.id);
+    if (!sellerProducts.length) {
+        table.innerHTML = '<tr><td colspan="4">You have not listed any farm products yet.</td></tr>';
+        return;
+    }
+
+    table.innerHTML = sellerProducts.map(crop => `
+        <tr>
+            <td>${escapeHTML(crop.name)}</td>
+            <td><input class="seller-price input-sm" type="number" min="0" step="0.01" value="${crop.pricePerKg}" data-product-id="${escapeHTML(crop.id)}"></td>
+            <td><input class="seller-stock input-sm" type="number" min="0" step="1" value="${crop.available}" data-product-id="${escapeHTML(crop.id)}"></td>
+            <td>${crop.available > CONFIG.order.minimumStock ? '<span class="status-ok">Visible</span>' : '<span class="status-low">Hidden</span>'}</td>
+        </tr>
+    `).join("");
+}
+
+async function addSellerCrop(event) {
+    event.preventDefault();
+    if (!currentUser || !isSeller || isAdmin) return alert("Only an approved seller can list farm products.");
+
+    const name = $("seller-new-crop-name").value.trim();
+    const type = $("seller-new-crop-type").value.trim();
+    const price = Number($("seller-new-crop-price").value);
+    const stock = Number($("seller-new-crop-stock").value);
+    if (!name || !type || !Number.isFinite(price) || price < 0
+        || !Number.isInteger(stock) || stock < 0) {
+        return alert("Enter a product name, category, non-negative price, and whole-number stock.");
+    }
+
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "product";
+    const id = `${currentUser.id.slice(0, 8)}-${slug}-${crypto.randomUUID().slice(0, 8)}`;
+    const product = {
+        id,
+        name,
+        type,
+        stock_per_unit: stock,
+        stock_kg: stock,
+        price_per_kg: price,
+        image: "",
+        seller_id: currentUser.id,
+        farm_name: sellerApplication?.farm_name || currentUser.fullName
+    };
+
+    try {
+        const { error } = await supabaseClient.from("products").insert(product);
+        if (error) return alert(`⚠️ Could not list product: ${error.message}`);
+    } catch (error) {
+        return alert(`⚠️ Could not list product: ${error.message}`);
+    }
+    $("seller-add-crop-form").reset();
+    $("seller-new-crop-type").value = "Vegetable";
+    try {
+        await loadAllData();
+    } catch (loadError) {
+        return alert(`✅ Product was listed, but the latest inventory could not be loaded: ${loadError.message}`);
+    }
+    renderSellerProducts();
+    renderCrops();
+}
+
+async function saveSellerChanges() {
+    if (!currentUser || !isSeller || isAdmin) return alert("Seller access is required.");
+    const sellerProducts = crops.filter(crop => crop.sellerId === currentUser.id);
+    const priceInputs = Array.from(document.querySelectorAll(".seller-price"));
+    const stockInputs = Array.from(document.querySelectorAll(".seller-stock"));
+    if (priceInputs.length !== sellerProducts.length || stockInputs.length !== sellerProducts.length
+        || priceInputs.some(input => input.value.trim() === "" || !Number.isFinite(Number(input.value)) || Number(input.value) < 0)
+        || stockInputs.some(input => input.value.trim() === "" || !Number.isInteger(Number(input.value)) || Number(input.value) < 0)) {
+        return alert("Enter valid non-negative prices and whole-number stock quantities.");
+    }
+
+    const changes = new Map();
+    for (const crop of sellerProducts) {
+        const priceInput = priceInputs.find(input => input.dataset.productId === crop.id);
+        const stockInput = stockInputs.find(input => input.dataset.productId === crop.id);
+        if (!priceInput || !stockInput) return alert("Could not match an inventory row. Refresh and try again.");
+        const update = { product_id: crop.id };
+        if (Number(priceInput.value) !== crop.pricePerKg) update.price_per_kg = Number(priceInput.value);
+        if (Number(stockInput.value) !== crop.available) update.stock_kg = Number(stockInput.value);
+        if (Object.keys(update).length > 1) changes.set(crop.id, update);
+    }
+
+    try {
+        await updateInventory([...changes.values()]);
+        await loadAllData();
+    } catch (error) {
+        return alert(`⚠️ Could not save your farm inventory: ${error.message}`);
+    }
+    renderSellerProducts();
+    renderCrops();
+    alert("✅ Your farm inventory is updated.");
+}
+
+function renderSellerOrders() {
+    const container = $("seller-orders");
+    if (!container) return;
+    const sellerOrders = orders.filter(order => order.sellerId === currentUser?.id);
+    if (!sellerOrders.length) {
+        container.innerHTML = '<p class="empty-message">No orders for your farm yet.</p>';
+        return;
+    }
+    const sellerStatusOptions = {
+        Pending: ["Pending", "Preparing", "Cancelled"],
+        Preparing: ["Preparing", "Ready", "Cancelled"],
+        Ready: ["Ready", "Delivered", "Cancelled"],
+        Delivered: ["Delivered"],
+        Cancelled: ["Cancelled"],
+        Completed: ["Completed"]
+    };
+    container.innerHTML = sellerOrders.map(order => `
+        <div class="order-admin-card">
+            <div class="order-admin-head">
+                <strong>${escapeHTML(order.id)}</strong>
+                <select ${["Delivered", "Cancelled", "Completed"].includes(order.status) ? "disabled" : ""}
+                    aria-label="Update status for order ${escapeHTML(order.id)}"
+                    onchange="updateOrderStatus('${escapeHTML(order.id)}', this.value)">
+                    ${(sellerStatusOptions[order.status] || [order.status]).map(status => `
+                        <option value="${status}" ${order.status === status ? "selected" : ""}>${status}</option>
+                    `).join("")}
+                </select>
+            </div>
+            <p><strong>Customer:</strong> ${escapeHTML(order.customer.fullName)}</p>
+            <p><strong>Contact:</strong> ${escapeHTML(order.customer.phone || order.customer.email)}</p>
+            <p><strong>Address:</strong> ${escapeHTML(order.customer.address || "N/A")}</p>
+            <div class="order-admin-items">
+                ${order.items.map(item => `<div>${escapeHTML(item.cropName)} — ${item.quantity}kg × ${formatCurrency(item.pricePerKg)} = ${formatCurrency(item.subtotal)}</div>`).join("")}
+            </div>
+            <p><strong>Total:</strong> ${order.totalQuantity}kg · ${formatCurrency(order.totalAmount)}</p>
+            <p><strong>Payment:</strong> ${escapeHTML(getPaymentMethodLabel(order.paymentMethod))} — ${escapeHTML(order.paymentStatus)}</p>
+        </div>
+    `).join("");
+}
+
+async function renderSellerApplications() {
+    const container = $("seller-applications");
+    if (!container || !isAdmin) return;
+    const applications = sellerApplications;
+    if (!applications.length) {
+        container.innerHTML = '<p class="empty-message">No farmer applications yet.</p>';
+        return;
+    }
+
+    try {
+        const { data: applicantProfiles, error: profilesError } = await supabaseClient
+            .from("profiles")
+            .select("id,email,full_name")
+            .in("id", applications.map(application => application.user_id));
+        if (profilesError) throw profilesError;
+        const profilesById = new Map(applicantProfiles.map(profile => [profile.id, profile]));
+        const cards = await Promise.all(applications.map(async application => {
+            const applicant = profilesById.get(application.user_id);
+            let certificateMarkup = "<p>Certificate link is unavailable.</p>";
+            if (application.status === "pending") {
+                const { data, error } = await supabaseClient.storage
+                    .from("farmer-certificates")
+                    .createSignedUrl(application.certificate_path, 3600);
+                if (!error && data?.signedUrl) {
+                    certificateMarkup = `<a href="${escapeHTML(data.signedUrl)}" target="_blank" rel="noopener noreferrer">Open private farmer certificate</a>`;
+                } else {
+                    certificateMarkup = `<p>Certificate could not be opened: ${escapeHTML(error?.message || "Signed link unavailable")}</p>`;
+                }
+            }
+            return `
+                <article class="seller-application-card">
+                    <h4>${escapeHTML(application.farm_name)} — ${escapeHTML(application.status)}</h4>
+                    <p><strong>Applicant:</strong> ${escapeHTML(applicant?.full_name || "Unknown")} (${escapeHTML(applicant?.email || "email unavailable")})</p>
+                    <p>${escapeHTML(application.farm_description || "No farm description provided.")}</p>
+                    <p><strong>Submitted:</strong> ${escapeHTML(new Date(application.created_at).toLocaleString("en-PH"))}</p>
+                    ${certificateMarkup}
+                    ${application.review_notes ? `<p><strong>Review note:</strong> ${escapeHTML(application.review_notes)}</p>` : ""}
+                    ${application.status === "pending" ? `
+                        <textarea id="seller-review-${escapeHTML(application.id)}" maxlength="1000" placeholder="Optional review note"></textarea>
+                        <button onclick="reviewSellerApplication('${escapeHTML(application.id)}', 'approved')">Approve Seller</button>
+                        <button class="danger" onclick="reviewSellerApplication('${escapeHTML(application.id)}', 'rejected')">Reject</button>
+                    ` : ""}
+                </article>
+            `;
+        }));
+        container.innerHTML = cards.join("");
+    } catch (error) {
+        console.error("Could not prepare seller application certificates:", error);
+        container.innerHTML = `<p class="empty-message">Could not load certificate links: ${escapeHTML(error.message)}</p>`;
+    }
+}
+
+async function reviewSellerApplication(applicationId, decision) {
+    if (!isAdmin || !["approved", "rejected"].includes(decision)) {
+        return alert("Only the owner administrator can review seller applications.");
+    }
+    const application = sellerApplications.find(item => item.id === applicationId);
+    if (!application || application.status !== "pending") {
+        return alert("This application is no longer pending review.");
+    }
+    const notes = $(`seller-review-${applicationId}`)?.value.trim() || "";
+    if (decision === "rejected" && !confirm("Reject this farmer application?")) return;
+    if (decision === "approved" && !confirm(`Approve ${application.farm_name} as a seller? This grants access only to their own products and orders.`)) return;
+
+    try {
+        const { error } = await supabaseClient.rpc("review_farm_fresh_seller_application", {
+            p_application_id: applicationId,
+            p_decision: decision,
+            p_review_notes: notes
+        });
+        if (error) return alert(`⚠️ Could not review application: ${error.message}`);
+    } catch (error) {
+        return alert(`⚠️ Could not review application: ${error.message}`);
+    }
+    try {
+        await loadAllData();
+    } catch (loadError) {
+        return alert(`✅ Application ${decision}, but the latest list could not be loaded: ${loadError.message}`);
+    }
+    showAdminPanel();
+    alert(`✅ Farmer application ${decision}.`);
 }
 
 function resizeImageForStorage(file, width, height, cropToFill, outputType, quality = .82) {
@@ -1132,7 +1572,7 @@ async function saveProducts(items) {
 }
 
 async function updateInventory(updates) {
-    if (!isAdmin) throw new Error("Administrator access required.");
+    if (!isAdmin && !isSeller) throw new Error("Seller or owner administrator access required.");
     if (!updates.length) return;
     const { error } = await supabaseClient.rpc("update_farm_fresh_inventory", {
         p_updates: updates
@@ -1365,8 +1805,8 @@ async function updatePaymentStatus(orderId, paymentStatus) {
 }
 
 async function updateOrderStatus(orderId, status) {
-    if (!isAdmin) {
-        return alert("❌ Only an administrator can update order status.");
+    if (!isAdmin && (!isSeller || !orders.some(item => item.id === orderId && item.sellerId === currentUser?.id))) {
+        return alert("❌ Only the order's seller or the owner administrator can update order status.");
     }
 
     if (!orders.some(item => item.id === orderId)) return;
@@ -1383,7 +1823,7 @@ async function updateOrderStatus(orderId, status) {
     if (error) return alert(`⚠️ Could not update order status: ${error.message}`);
     await refreshShopData();
     if (status === "Delivered") {
-        alert("✅ Item marked as DELIVERED. The delivery receipt is now available to the customer.");
+        alert("✅ Order marked as DELIVERED. The delivery receipt is now available to the customer.");
     }
 }
 
@@ -1496,7 +1936,9 @@ function showCustomerOrders() {
         "order-section",
         "summary-section",
         "receipt-section",
-        "admin-panel"
+        "admin-panel",
+        "seller-panel",
+        "seller-application-section"
     ]);
 
     show("customer-orders-section");
@@ -1507,11 +1949,7 @@ function renderCustomerOrders() {
     const container = $("customer-orders");
     if (!container || !currentUser) return;
 
-    const myOrders = orders.filter(order =>
-        order.customer &&
-        order.customer.email &&
-        order.customer.email.toLowerCase() === currentUser.email.toLowerCase()
-    );
+    const myOrders = orders.filter(order => order.userId === currentUser.id);
 
     if (!myOrders.length) {
         container.innerHTML = '<p class="empty-message">You have no orders yet.</p>';
@@ -1531,6 +1969,7 @@ function renderCustomerOrders() {
                 <p><strong>Order Type:</strong> ${escapeHTML(
                     CONFIG.orderTypes[order.orderType]?.label || order.orderType
                 )}</p>
+                <p><strong>Farm:</strong> ${escapeHTML(order.items[0]?.farmName || "Farm Fresh")}</p>
                 <p><strong>Date:</strong> ${escapeHTML(order.reservationDate)}</p>
                 <p><strong>Payment Method:</strong> ${escapeHTML(getPaymentMethodLabel(order.paymentMethod))}</p>
                 <p><strong>Payment Status:</strong> ${escapeHTML(order.paymentStatus || "Not recorded")}</p>
@@ -1584,9 +2023,7 @@ async function markItemReceived(orderId) {
 
     const order = orders.find(item =>
         item.id === orderId &&
-        item.customer &&
-        item.customer.email &&
-        item.customer.email.toLowerCase() === currentUser.email.toLowerCase()
+        item.userId === currentUser.id
     );
 
     if (!order) {

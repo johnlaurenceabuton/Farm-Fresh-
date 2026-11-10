@@ -21,7 +21,9 @@
         #order-section,
         #summary-section,
         #receipt-section,
-        #admin-panel {
+        #admin-panel,
+        #seller-panel,
+        #seller-application-section {
             width: min(950px, calc(100% - 40px));
             margin-left: auto;
             margin-right: auto;
@@ -545,16 +547,21 @@
             font-size: 22px;
         }
 
-        .signup-form input {
+        .signup-form input,
+        .signup-form select,
+        .signup-form textarea {
             width: 100%;
-            height: 52px;
             margin: 7px 0;
             border-radius: 10px;
             border: 1px solid #c8c8c8;
-            padding: 0 15px;
+            padding: 12px 15px;
             font-size: 16px;
             background: #fff;
         }
+
+        .signup-form input,
+        .signup-form select { height: 52px; }
+        .signup-form textarea { resize: vertical; }
 
         .signup-form .login-btn {
             height: 54px;
@@ -579,7 +586,9 @@
         #order-section,
         #summary-section,
         #receipt-section,
-        #admin-panel {
+        #admin-panel,
+        #seller-panel,
+        #seller-application-section {
             width: min(100% - 32px, 1050px);
             margin-left: auto;
             margin-right: auto;
@@ -588,6 +597,38 @@
             backdrop-filter: blur(4px);
             box-shadow: 0 10px 30px rgba(45, 67, 39, .12);
         }
+
+        #seller-panel,
+        #seller-application-section {
+            margin-bottom: 30px;
+        }
+
+        .seller-application-status {
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 8px;
+            background: #f2f7ee;
+        }
+
+        .seller-application-card {
+            border: 1px solid #cfd9ca;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 12px 0;
+            background: rgba(255,255,255,.95);
+        }
+
+        .seller-application-card textarea {
+            width: 100%;
+            min-height: 72px;
+            margin: 8px 0;
+            padding: 10px;
+            border: 1px solid #b8c7b2;
+            border-radius: 8px;
+            resize: vertical;
+        }
+
+        .seller-application-card a { display: inline-block; margin: 8px 0; }
 
         #browse-section {
             margin-bottom: 35px;
@@ -633,7 +674,9 @@
             #order-section,
             #summary-section,
             #receipt-section,
-            #admin-panel {
+            #admin-panel,
+            #seller-panel,
+            #seller-application-section {
                 width: min(100% - 20px, 1050px);
             }
 
@@ -1279,13 +1322,16 @@
         body.auth-scene .signup-form { border-color: rgba(197, 230, 210, .18); }
         body.auth-scene .signup-form h3 { color: #d3ff94; }
 
-        body.auth-scene .signup-form input {
+        body.auth-scene .signup-form input,
+        body.auth-scene .signup-form select,
+        body.auth-scene .signup-form textarea {
             border-color: rgba(190, 226, 209, .2);
             color: #effcf5;
             background: rgba(235, 255, 245, .055);
         }
 
         body.auth-scene .signup-form input::placeholder { color: rgba(226, 242, 233, .52); }
+        body.auth-scene .signup-form select option { color: #263d2b; }
         body.auth-scene .back-login-btn { border-color: rgba(183, 238, 204, .28); color: #c5f979; }
         body.auth-scene .back-login-btn:hover { color: #f0fff6; background: rgba(99, 255, 175, .1); }
 

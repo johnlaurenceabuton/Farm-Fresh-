@@ -27,6 +27,7 @@
 <div id="nav-area" class="nav-links hidden">
     <span id="user-greeting"></span>
     <button id="admin-view-toggle" class="sm secondary hidden" onclick="toggleAdminCustomerView()">Admin View</button>
+    <button id="seller-view-toggle" class="sm secondary hidden" onclick="toggleSellerBuyerView()">Seller View</button>
     <button class="sm secondary" onclick="showPasswordSection()">Set / Change Password</button>
     <button class="sm secondary" onclick="logout()">Logout</button>
 </div>
@@ -56,6 +57,12 @@
 
     <form id="signup-form" class="hidden signup-form" onsubmit="handleSignup(event)">
         <h3>Create Your Account</h3>
+        <label for="account-type">Account type</label>
+        <select id="account-type" required>
+            <option value="customer">Buyer — shop and place orders</option>
+            <option value="seller">Farmer seller — apply to sell after signup</option>
+        </select>
+        <p class="note">Seller accounts are reviewed by the owner after you submit a farmer certificate. Owner Admin accounts are invitation-only and cannot be created here.</p>
         <input type="text" id="fullName" placeholder="Full Name" autocomplete="name" required>
         <input type="email" id="email" placeholder="Email Address" autocomplete="email" required>
         <input type="tel" id="phone" placeholder="Phone Number" autocomplete="tel" required>
@@ -77,6 +84,46 @@
     </form>
 </section>
 
+<section id="seller-application-section" class="card hidden">
+    <h2>🌱 Apply to Sell as a Farmer</h2>
+    <p class="note">Submit your farm details and a clear photo or PDF of your farmer certificate. The owner privately reviews applications. Applying does not grant seller or admin access.</p>
+    <div id="seller-application-status" class="seller-application-status"></div>
+    <form id="seller-application-form" class="signup-form" onsubmit="submitSellerApplication(event)">
+        <input type="text" id="farm-name" placeholder="Farm name" maxlength="100" required>
+        <textarea id="farm-description" placeholder="Tell customers about your farm (optional)" maxlength="1000" rows="4"></textarea>
+        <label for="farmer-certificate">Farmer certificate (PDF, JPG, or PNG; max 8 MB)</label>
+        <input type="file" id="farmer-certificate" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
+        <button type="submit" class="login-btn">SUBMIT FARMER APPLICATION</button>
+    </form>
+    <button class="secondary" onclick="showBrowse()">← Back to Shop</button>
+</section>
+
+<section id="seller-panel" class="card hidden">
+    <h2>🌾 Seller Control Panel</h2>
+    <span class="admin-badge">✅ APPROVED SELLER — Your farm's inventory and orders only</span>
+    <p class="note">Changes affect only your products. Orders containing multiple farms are split at checkout so each seller manages their own delivery status.</p>
+    <h3>➕ Add Farm Product</h3>
+    <form id="seller-add-crop-form" class="add-crop-form" onsubmit="addSellerCrop(event)">
+        <input type="text" id="seller-new-crop-name" placeholder="Product name" maxlength="60" required>
+        <input type="text" id="seller-new-crop-type" placeholder="Category" maxlength="40" value="Vegetable" required>
+        <input type="number" id="seller-new-crop-price" placeholder="Price per kg" min="0" step="0.01" required>
+        <input type="number" id="seller-new-crop-stock" placeholder="Stock in kg" min="0" step="1" required>
+        <button type="submit" class="sm">Add Product</button>
+    </form>
+    <div class="admin-table-wrap">
+        <table>
+            <thead>
+                <tr><th>Product</th><th>Price (₱ / kg)</th><th>Stock (kg)</th><th>Status</th></tr>
+            </thead>
+            <tbody id="seller-products-table"></tbody>
+        </table>
+    </div>
+    <button onclick="saveSellerChanges()">💾 Save My Inventory</button>
+    <h3>📦 Orders for My Farm</h3>
+    <div id="seller-orders"></div>
+    <button class="secondary" onclick="showBrowse()">🛒 Switch to Buyer View</button>
+</section>
+
 <section id="browse-section" class="card hidden">
     <h2 class="browse-title">🥬 Fresh Vegetables</h2>
     <p class="note browse-subtitle">
@@ -91,6 +138,7 @@
 
     <button onclick="goToSelection()">Next: Select Vegetables & Quantity →</button>
     <button class="secondary" onclick="showCustomerOrders()">📦 My Orders & Deliveries</button>
+    <button id="apply-seller-button" class="secondary hidden" onclick="showSellerApplication()">🌱 Apply to Sell</button>
 </section>
 
 <section id="customer-orders-section" class="card hidden">
@@ -206,6 +254,12 @@
     <h3>📦 Customer Orders</h3>
     <p class="note">Orders submitted by customers appear here. Update the status as you process each order.</p>
     <div id="admin-orders"></div>
+
+    <hr>
+
+    <h3>🌱 Farmer Applications</h3>
+    <p class="note">Review each private farmer certificate before approving seller access. Approval grants access only to that farmer's products and orders—not owner controls.</p>
+    <div id="seller-applications"></div>
 
     <hr>
 
