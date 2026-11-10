@@ -7,6 +7,7 @@ if (!window.supabase?.createClient) {
     throw new Error("Supabase JavaScript client is unavailable.");
 }
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const authLinkType = new URLSearchParams(window.location.hash.slice(1)).get("type");
 
 /* =========================================================
    CONFIGURATION
@@ -292,6 +293,22 @@ async function handleLogin(event) {
     }
     if (error) return alert(`❌ Login failed: ${error.message}`);
     await completeSupabaseLogin(data.user);
+}
+
+async function handlePasswordReset() {
+    const email = $("login-email").value.trim().toLowerCase();
+    if (!email) return alert("Enter your account email address first.");
+
+    let error;
+    try {
+        ({ error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}${window.location.pathname}`
+        }));
+    } catch (requestError) {
+        return alert(`⚠️ Could not request a password reset: ${requestError.message}`);
+    }
+    if (error) return alert(`⚠️ Could not request a password reset: ${error.message}`);
+    alert("If an account exists for that email, a password reset link will be sent.");
 }
 
 async function completeSupabaseLogin(authUser) {
@@ -1756,7 +1773,10 @@ async function initializeApp() {
         alert(`⚠️ Could not restore login session: ${error.message}`);
         return;
     }
-    if (data.session) await completeSupabaseLogin(data.session.user);
+    if (data.session) {
+        await completeSupabaseLogin(data.session.user);
+        if (authLinkType === "invite" || authLinkType === "recovery") showPasswordSection();
+    }
 }
 
 initializeApp().catch(error => {
