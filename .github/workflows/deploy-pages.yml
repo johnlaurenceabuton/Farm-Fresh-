@@ -27,10 +27,15 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
+      - name: Stage storefront
+        run: |
+          mkdir site
+          cp index.html app.js styles.css site/
+
       - name: Upload storefront
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: site
 
       - name: Deploy storefront
         id: deployment
