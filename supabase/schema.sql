@@ -6,7 +6,7 @@ create table if not exists public.profiles (
     full_name text not null default '',
     phone text not null default '',
     address text not null default '',
-    role text not null default 'customer' check (role in ('customer', 'admin')),
+    role text not null default 'customer' check (role in ('customer', 'seller', 'admin')),
     created_at timestamptz not null default now()
 );
 
@@ -16,17 +16,33 @@ language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
+declare
+    v_account_type text := lower(coalesce(new.raw_user_meta_data ->> 'account_type', 'customer'));
+    v_role text := case
+        when v_account_type = 'admin' then 'admin'
+        when v_account_type = 'seller' then 'customer'
+        else 'customer'
+    end;
 begin
-    insert into public.profiles (id, email, full_name, phone, address)
+    insert into public.profiles (id, email, full_name, phone, address, role)
     values (
         new.id,
         coalesce(new.email, ''),
         coalesce(new.raw_user_meta_data ->> 'full_name', ''),
         coalesce(new.raw_user_meta_data ->> 'phone', ''),
-        coalesce(new.raw_user_meta_data ->> 'address', '')
+        coalesce(new.raw_user_meta_data ->> 'address', ''),
+        v_role
     )
     on conflict (id) do update
-    set email = excluded.email;
+    set email = excluded.email,
+        full_name = excluded.full_name,
+        phone = excluded.phone,
+        address = excluded.address,
+        role = case
+            when excluded.role = 'admin' then 'admin'
+            when excluded.role = 'seller' then 'customer'
+            else 'customer'
+        end;
     return new;
 end;
 $$;

@@ -156,6 +156,26 @@ function clone(data) {
     return JSON.parse(JSON.stringify(data));
 }
 
+async function clearSellerAccountPreference() {
+    if (!supabaseClient?.auth) return;
+    try {
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        if (error || !session?.user) return;
+        if (session.user.user_metadata?.account_type === "seller") {
+            await supabaseClient.auth.updateUser({ data: { account_type: "customer" } });
+        }
+    } catch (error) {
+        console.warn("Could not clear seller account preference:", error);
+    }
+
+    try {
+        localStorage.removeItem("ff_users");
+        sessionStorage.removeItem("ff_users");
+    } catch (error) {
+        console.warn("Could not clear legacy browser-stored seller data:", error);
+    }
+}
+
 function formatCurrency(amount) {
     return `₱${Number(amount || 0).toLocaleString("en-PH", {
         minimumFractionDigits: 0,
@@ -229,7 +249,7 @@ async function loadAllData() {
         sellerId: order.seller_id
     }));
     sellerApplications = sellerApplicationsResult.data;
-    sellerApplication = sellerApplications.find(item => item.user_id === currentUser.id) || null;
+    sellerApplication = currentUser ? sellerApplications.find(item => item.user_id === currentUser.id) || null : null;
     paymentQrs = Object.fromEntries(
         paymentResult.data.map(row => [row.method, row.image_data])
     );
@@ -404,7 +424,9 @@ async function handleSignup(event) {
             }
             return alert(`⚠️ Could not create account: ${error.message}`);
         }
-        if (!data.session) {
+        if (!data.session && data.user) {
+            $("login-email").value = email;
+            $("login-password").value = "";
             return alert("✅ Account created. Check your email to confirm the account, then log in.");
         }
 
@@ -475,7 +497,9 @@ async function completeSupabaseLogin(authUser) {
     };
     isAdmin = profile.role === "admin";
     isSeller = profile.role === "seller";
-    requestedAccountType = authUser.user_metadata?.account_type === "seller" ? "seller" : "customer";
+    requestedAccountType = isSeller || authUser.user_metadata?.account_type === "seller"
+        ? "seller"
+        : "customer";
     await postLoginSetup();
 }
 
@@ -560,6 +584,7 @@ async function logout() {
 
     let error;
     try {
+        await clearSellerAccountPreference();
         ({ error } = await supabaseClient.auth.signOut());
     } catch (requestError) {
         return alert(`⚠️ Could not log out: ${requestError.message}`);
@@ -2192,6 +2217,7 @@ function initializeAuthInteractions() {
 async function initializeApp() {
     try {
         localStorage.removeItem("ff_users");
+        sessionStorage.removeItem("ff_users");
     } catch (error) {
         console.error("Could not remove legacy browser-stored credentials:", error);
     }
