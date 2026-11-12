@@ -1372,6 +1372,27 @@
         body.auth-scene .back-login-btn { border-color: rgba(183, 238, 204, .28); color: #c5f979; }
         body.auth-scene .back-login-btn:hover { color: #f0fff6; background: rgba(99, 255, 175, .1); }
 
+        body.auth-scene #seller-preapplication-section {
+            color: #333;
+            background: #fff;
+        }
+
+        body.auth-scene #seller-preapplication-section h2 { color: #2f3a32; }
+        body.auth-scene #seller-preapplication-section .note { color: #555; }
+
+        body.auth-scene #seller-preapplication-section .signup-form input,
+        body.auth-scene #seller-preapplication-section .signup-form textarea {
+            border-color: #b8c2ba;
+            color: #26352c;
+            background: #fff;
+        }
+
+        body.auth-scene #seller-preapplication-section .signup-form input::placeholder,
+        body.auth-scene #seller-preapplication-section .signup-form textarea::placeholder {
+            color: #59665f;
+            opacity: 1;
+        }
+
         @keyframes edge-orbit {
             to { --edge-angle: 360deg; }
         }
