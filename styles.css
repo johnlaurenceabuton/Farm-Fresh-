@@ -723,14 +723,256 @@
         }
 
         /* =========================================================
-           VEGETABLE FRONT PAGE
-           Hover over or activate a vegetable card to reveal its price.
+           CUSTOMER VEGETABLE CATALOG
            ========================================================= */
         .vegetable-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 18px;
+        }
+
+        .seller-products-list {
+            display: grid;
+            gap: 28px;
             margin-top: 20px;
+        }
+
+        .seller-products-section {
+            padding: 20px;
+            border: 1px solid #d4e4ce;
+            border-top: 5px solid #4d8c44;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #f3f9f0, #fff 80%);
+            box-shadow: 0 4px 14px rgba(45, 95, 45, .08);
+        }
+
+        .seller-products-section {
+            scroll-margin-top: 20px;
+            transition: box-shadow .25s ease, outline-color .25s ease;
+        }
+
+        .seller-products-section.farm-search-target {
+            outline: 3px solid #78b96c;
+            outline-offset: 3px;
+            box-shadow: 0 7px 22px rgba(45, 95, 45, .2);
+        }
+
+        .seller-products-heading {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            margin-bottom: 16px;
+            margin-left: 0;
+            margin-right: 0;
+            text-align: left;
+        }
+
+        .seller-products-icon {
+            display: grid;
+            place-items: center;
+            width: 46px;
+            height: 46px;
+            flex: 0 0 46px;
+            border-radius: 50%;
+            background: #e3f1df;
+            font-size: 24px;
+        }
+
+        .seller-products-label {
+            margin-bottom: 2px;
+            color: #647860;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        .seller-products-heading > div {
+            min-width: 0;
+        }
+
+        .seller-products-title {
+            margin: 0;
+            color: #2d5f2d;
+            font-size: 25px;
+            font-weight: 800;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }
+
+        .seller-products-more {
+            display: block;
+            margin: 18px auto 0;
+        }
+
+        .farm-search {
+            width: min(100%, 620px);
+            margin: 18px auto 0;
+        }
+
+        .farm-search-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            width: auto;
+            margin: 0 auto 12px;
+            padding: 10px 16px;
+        }
+
+        .farm-search-toggle svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-linecap: round;
+            stroke-width: 2;
+        }
+
+        .farm-search-panel {
+            padding: 14px;
+            border: 1px solid #d4e4ce;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 5px 16px rgba(45, 95, 45, .1);
+        }
+
+        .farm-search-panel-title {
+            margin-bottom: 10px;
+            color: #2d5f2d;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .farm-search-panel label {
+            margin: 0 0 10px;
+            color: #35523a;
+            font-weight: 700;
+        }
+
+        .farm-search-panel input[type="search"] {
+            margin: 6px 0 0;
+            border-color: #b8c7b2;
+        }
+
+        .seller-directory-warning {
+            margin: 0 0 10px;
+            padding: 9px 11px;
+            border-radius: 8px;
+            background: #fff7e0;
+            color: #765a16;
+            font-size: 13px;
+        }
+
+        .farm-search-results {
+            display: grid;
+            gap: 6px;
+            max-height: 220px;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .farm-search-result {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            width: 100%;
+            margin: 0;
+            padding: 11px 13px;
+            border: 1px solid #e1ebdd;
+            border-radius: 8px;
+            background: #f6faf4;
+            color: #2d5f2d;
+            text-align: left;
+        }
+
+        .farm-search-result:hover {
+            background: #e8f5e8;
+            color: #2d5f2d;
+        }
+
+        .farm-search-count {
+            flex-shrink: 0;
+            color: #647860;
+            font-size: 12px;
+            font-weight: 400;
+        }
+
+        .farm-search-empty {
+            padding: 10px 2px;
+            color: #647860;
+            font-size: 14px;
+        }
+
+        .farm-no-vegetables {
+            padding: 14px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .8);
+            color: #647860;
+        }
+
+        .seller-product-image-field {
+            min-width: 0;
+            padding: 6px 8px;
+            border: 1px solid #dce5d8;
+            border-radius: 8px;
+            color: #35523a;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .seller-product-image-help {
+            display: block;
+            margin-top: 2px;
+            color: #647860;
+            font-size: 11px;
+            font-weight: 400;
+        }
+
+        .seller-product-image-field input[type="file"] {
+            margin: 5px 0 0;
+            padding: 5px;
+            font-size: 12px;
+        }
+
+        .seller-product-photo-control {
+            display: grid;
+            justify-items: start;
+            gap: 4px;
+            min-width: 104px;
+        }
+
+        .seller-product-thumbnail,
+        .seller-photo-placeholder {
+            display: grid;
+            place-items: center;
+            width: 96px;
+            height: 64px;
+            border-radius: 7px;
+            object-fit: cover;
+            background: #e8efe7;
+        }
+
+        .seller-photo-placeholder {
+            color: #72816f;
+            font-size: 11px;
+        }
+
+        .seller-photo-upload {
+            margin: 0;
+            color: #2d6c35;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .seller-photo-upload input[type="file"] {
+            width: 150px;
+            margin: 0;
+            padding: 3px 0;
+            font-size: 11px;
         }
 
         .vegetable-card {
@@ -971,49 +1213,13 @@
         }
 
         .vegetable-price {
-            max-height: 0;
-            margin-top: 0;
-            padding: 0 10px;
-            overflow: hidden;
+            margin-top: 12px;
+            padding: 10px;
             border-radius: 9px;
             background: #eaf7ea;
             color: #2d7d2d;
             font-size: 20px;
             font-weight: bold;
-            opacity: 0;
-            transform: translateY(-8px) scale(.96);
-            transform-origin: top center;
-            transition: max-height .35s ease, margin .35s ease, padding .35s ease, opacity .25s ease, transform .35s ease;
-        }
-
-        .vegetable-card.active {
-            border-color: #4caf50;
-            box-shadow: 0 5px 16px rgba(76, 175, 80, .18);
-        }
-
-        .vegetable-card:is(:hover, :focus-visible, .active) .vegetable-price {
-            max-height: 60px;
-            margin-top: 12px;
-            padding: 10px;
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-
-        .click-hint {
-            color: #888;
-            font-size: 12px;
-            margin-top: 8px;
-        }
-
-        .vegetable-card:is(:hover, :focus-visible, .active) .click-hint {
-            display: none;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .vegetable-price {
-                transition: none;
-                transform: none;
-            }
         }
 
         .browse-title {
@@ -1026,7 +1232,235 @@
             text-align: center;
         }
 
+        #browse-section {
+            width: min(1080px, calc(100% - 40px));
+            padding: clamp(20px, 3vw, 36px);
+            border: 1px solid #e2eadf;
+            border-radius: 22px;
+            background: linear-gradient(180deg, #fff 0%, #fbfdf9 100%);
+            box-shadow: 0 14px 36px rgba(34, 69, 38, .09);
+        }
+
+        #browse-section .browse-title {
+            margin: 0 0 8px;
+            padding: 0;
+            border: 0;
+            color: #214f2a;
+            font-size: clamp(28px, 3vw, 36px);
+            font-weight: 800;
+            letter-spacing: -.025em;
+        }
+
+        #browse-section .browse-subtitle {
+            max-width: 680px;
+            margin: 0 auto 8px;
+            color: #637264;
+            font-size: 15px;
+            line-height: 1.55;
+        }
+
+        #browse-section .browse-subtitle + .browse-subtitle {
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        #browse-section .farm-search-toggle {
+            display: inline-flex;
+            justify-content: center;
+            gap: 10px;
+            min-width: 180px;
+            min-height: 46px;
+            padding: 11px 18px;
+            border-radius: 10px;
+            background: #2f6d3b;
+            box-shadow: 0 3px 8px rgba(38, 91, 48, .16);
+        }
+
+        #browse-section .farm-search-toggle svg {
+            display: block;
+            width: 22px;
+            height: 22px;
+            flex: 0 0 22px;
+            stroke: #fff;
+            stroke-width: 2.25;
+        }
+
+        #browse-section .farm-search-toggle:hover {
+            background: #275b32;
+        }
+
+        #browse-section .seller-products-list {
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        #browse-section .seller-products-section {
+            padding: clamp(16px, 2.4vw, 24px);
+            border: 1px solid #dce8d7;
+            border-top: 4px solid #4d8c44;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 6px 20px rgba(36, 68, 40, .07);
+        }
+
+        #browse-section .seller-products-heading {
+            padding-bottom: 14px;
+            border-bottom: 1px solid #edf2eb;
+        }
+
+        #browse-section .vegetable-grid {
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        #browse-section .vegetable-card {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+            align-items: stretch;
+            cursor: default;
+            padding: 14px;
+            border: 1px solid #e2e9df;
+            border-radius: 14px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(35, 67, 39, .05);
+            text-align: left;
+            user-select: auto;
+        }
+
+        #browse-section .vegetable-card:hover {
+            transform: translateY(-2px);
+            border-color: #75a96e;
+            box-shadow: 0 8px 20px rgba(45, 95, 45, .12);
+        }
+
+        #browse-section .vegetable-card h3 {
+            margin: 0 0 5px;
+            color: #294f2d;
+            font-size: 18px;
+            line-height: 1.35;
+        }
+
+        #browse-section .vegetable-type {
+            margin-bottom: 0;
+            color: #758075;
+        }
+
+        #browse-section .vegetable-photo {
+            height: 156px;
+            aspect-ratio: auto;
+            margin-bottom: 13px;
+            border-radius: 10px;
+        }
+
+        #browse-section .vegetable-icon {
+            display: grid;
+            place-items: center;
+            width: 100%;
+            height: 156px;
+            margin-bottom: 13px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #edf5e9, #e1efdc);
+            font-size: 54px;
+        }
+
+        #browse-section .vegetable-price {
+            max-height: none;
+            margin: 12px 0 0;
+            padding: 9px 11px;
+            border: 1px solid #e0ecdd;
+            background: #f3f8f0;
+            color: #2d6c35;
+            font-size: 17px;
+            opacity: 1;
+            transform: none;
+            transition: none;
+        }
+
+        #browse-section .vegetable-card .note {
+            margin: 10px 0 0;
+            color: #647064;
+        }
+
+        #browse-section .qty-input {
+            width: 100%;
+            max-width: 140px;
+            align-self: flex-start;
+            margin: 10px 0 0;
+            border: 1px solid #ccd9c7;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        #browse-section .seller-products-more {
+            min-width: 140px;
+            padding: 10px 16px;
+            border: 1px solid #d7e3d2;
+            border-radius: 9px;
+            background: #f2f6ef;
+            color: #315d36;
+        }
+
+        #browse-section .seller-products-more:hover {
+            background: #e7f0e2;
+        }
+
+        #browse-section > button {
+            margin: 22px 8px 0 0;
+            padding: 12px 18px;
+            border-radius: 10px;
+        }
+
+        #browse-section > button:not(.secondary) {
+            background: #2f6d3b;
+            box-shadow: 0 4px 10px rgba(38, 91, 48, .16);
+        }
+
+        #browse-section > button.secondary {
+            border: 1px solid #d7e3d2;
+            background: #f2f6ef;
+            color: #315d36;
+        }
+
+        #browse-section > button.secondary:hover {
+            background: #e7f0e2;
+        }
+
+        #browse-section :is(button, input):focus-visible {
+            outline: 3px solid rgba(76, 145, 75, .35);
+            outline-offset: 2px;
+        }
+
         @media (max-width: 650px) {
+            #browse-section {
+                width: min(100% - 20px, 1080px);
+                padding: 20px 16px;
+                border-radius: 18px;
+            }
+
+            #browse-section .seller-products-section {
+                padding: 16px;
+            }
+
+            #browse-section .vegetable-grid {
+                grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+                gap: 12px;
+            }
+
+            #browse-section .vegetable-photo,
+            #browse-section .vegetable-icon {
+                height: 132px;
+            }
+
+            #browse-section .seller-products-title {
+                font-size: 22px;
+            }
+
+            #browse-section > button {
+                width: 100%;
+                margin: 10px 0 0;
+            }
+
             body { padding: 10px; }
             .card { padding: 17px; }
             table { font-size: 13px; }

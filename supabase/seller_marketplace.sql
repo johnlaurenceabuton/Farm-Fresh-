@@ -74,12 +74,16 @@ with check (seller_id = (select auth.uid()) and public.is_farm_fresh_seller());
 
 drop policy if exists "Customers see own orders and admins see all" on public.orders;
 drop policy if exists "Customers sellers and admins read authorized orders" on public.orders;
-create policy "Customers sellers and admins read authorized orders" on public.orders
+drop policy if exists "Customers and sellers read orders; admins read receipts" on public.orders;
+create policy "Customers and sellers read orders; admins read receipts" on public.orders
 for select to authenticated
 using (
-    user_id = (select auth.uid())
+    (
+        user_id = (select auth.uid())
+        and not public.is_farm_fresh_admin()
+    )
     or (seller_id = (select auth.uid()) and public.is_farm_fresh_seller())
-    or public.is_farm_fresh_admin()
+    or (public.is_farm_fresh_admin() and delivery_receipt is not null)
 );
 
 drop policy if exists "Users read own or admin reads seller applications" on public.seller_applications;
@@ -340,28 +344,24 @@ as $$
 declare
     v_order public.orders%rowtype;
     v_item jsonb;
-    v_is_admin boolean := public.is_farm_fresh_admin();
 begin
-    if not v_is_admin and not public.is_farm_fresh_seller() then
-        raise exception 'Seller or owner administrator access required';
+    if not public.is_farm_fresh_seller() then
+        raise exception 'Approved seller access required';
     end if;
-    if p_status not in ('Pending', 'Preparing', 'Ready', 'Delivered', 'Completed', 'Cancelled') then
+    if p_status not in ('Preparing', 'Ready', 'Delivered', 'Cancelled') then
         raise exception 'Invalid order status';
-    end if;
-    if not v_is_admin and p_status not in ('Preparing', 'Ready', 'Delivered', 'Cancelled') then
-        raise exception 'Sellers cannot set that order status';
     end if;
 
     select * into v_order from public.orders where id = p_order_id for update;
     if not found then raise exception 'Order not found'; end if;
-    if not v_is_admin and v_order.seller_id is distinct from auth.uid() then
+    if v_order.seller_id is distinct from auth.uid() then
         raise exception 'This order does not belong to your farm';
     end if;
     if v_order.status = p_status then return; end if;
     if v_order.status = 'Cancelled' and p_status <> 'Cancelled' then
         raise exception 'Cancelled orders cannot be reopened';
     end if;
-    if not v_is_admin and (
+    if (
         (v_order.status = 'Pending' and p_status not in ('Preparing', 'Cancelled'))
         or (v_order.status = 'Preparing' and p_status not in ('Ready', 'Cancelled'))
         or (v_order.status = 'Ready' and p_status not in ('Delivered', 'Cancelled'))
@@ -387,7 +387,6 @@ begin
             'receiptId', 'DLV-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 12),
             'transactionId', v_order.id,
             'preparedBy', coalesce((select full_name from public.profiles where id = auth.uid()), 'Farm Fresh Owner'),
-            'adminEmail', (select email from public.profiles where id = auth.uid()),
             'issuedAt', now(),
             'items', v_order.items,
             'totalQuantity', v_order.total_quantity,

@@ -71,6 +71,8 @@ let isSeller = false;
 let requestedAccountType = "customer";
 let selectedCrops = [];
 let crops = [];
+let sellerFarms = [];
+let sellerDirectoryWarning = false;
 let reservationDates = [];
 let orders = [];
 let sellerApplication = null;
@@ -187,16 +189,39 @@ async function loadAllData() {
     const sellerApplicationsQuery = isAdmin
         ? supabaseClient.from("seller_applications").select("*").order("created_at", { ascending: false })
         : supabaseClient.from("seller_applications").select("*").eq("user_id", currentUser.id).order("created_at", { ascending: false });
-    const [productsResult, datesResult, ordersResult, paymentResult, sellerApplicationsResult] = await Promise.all([
+    const [productsResult, datesResult, ordersResult, paymentResult, sellerApplicationsResult, sellerFarmsResult] = await Promise.all([
         supabaseClient.from("products").select("*").order("name"),
         supabaseClient.from("reservation_dates").select("available_on").order("available_on"),
         supabaseClient.from("orders").select("*").order("created_at", { ascending: false }),
         supabaseClient.from("payment_qrs").select("method,image_data"),
-        sellerApplicationsQuery
+        sellerApplicationsQuery,
+        supabaseClient.rpc("list_public_seller_farms")
     ]);
 
     for (const result of [productsResult, datesResult, ordersResult, paymentResult, sellerApplicationsResult]) {
         if (result.error) throw result.error;
+    }
+
+    if (sellerFarmsResult.error) {
+        if (sellerFarmsResult.error.code !== "PGRST202"
+            || !sellerFarmsResult.error.message.includes("list_public_seller_farms")) {
+            throw sellerFarmsResult.error;
+        }
+        sellerDirectoryWarning = true;
+        sellerFarms = getSellerFarmsFromProducts(productsResult.data);
+        console.warn(
+            "The public seller directory is unavailable. Showing farms with listed products only; run seller_directory.sql in Supabase to include every approved seller.",
+            sellerFarmsResult.error
+        );
+    } else {
+        if (!Array.isArray(sellerFarmsResult.data)) {
+            throw new Error("The seller directory returned an invalid farm list.");
+        }
+        sellerDirectoryWarning = false;
+        sellerFarms = sellerFarmsResult.data.map(farm => ({
+            id: farm.seller_id,
+            name: farm.farm_name
+        }));
     }
 
     crops = productsResult.data.map(product => ({
@@ -208,7 +233,7 @@ async function loadAllData() {
         pricePerKg: Number(product.price_per_kg),
         image: product.image || "",
         sellerId: product.seller_id,
-        sellerName: product.farm_name || "Farm Fresh"
+        sellerName: typeof product.farm_name === "string" ? product.farm_name.trim() : ""
     }));
     reservationDates = datesResult.data.map(row => row.available_on);
     orders = ordersResult.data.map(order => ({
@@ -256,6 +281,36 @@ async function loadAllData() {
     paymentQrs = Object.fromEntries(
         paymentResult.data.map(row => [row.method, row.image_data])
     );
+}
+
+function getSellerFarmsFromProducts(products) {
+    const farms = new Map();
+    products.forEach(product => {
+        const name = typeof product.farm_name === "string" ? product.farm_name.trim() : "";
+        if (product.seller_id && !isGenericFarmName(name) && !farms.has(product.seller_id)) {
+            farms.set(product.seller_id, { id: product.seller_id, name });
+        }
+    });
+    return Array.from(farms.values()).sort(
+        (first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" })
+    );
+}
+
+function isGenericFarmName(name) {
+    const normalizedName = typeof name === "string" ? name.trim() : "";
+    return !normalizedName || normalizedName.toLocaleLowerCase() === "farm fresh";
+}
+
+function getCurrentSellerFarmName() {
+    const approvedApplication = sellerApplications.find(application =>
+        application.user_id === currentUser?.id && application.status === "approved"
+    );
+    const applicationName = typeof approvedApplication?.farm_name === "string"
+        ? approvedApplication.farm_name.trim()
+        : "";
+    if (applicationName) return applicationName;
+
+    return sellerFarms.find(farm => farm.id === currentUser?.id)?.name?.trim() || "";
 }
 
 function normalizeReservationDates() {
@@ -653,6 +708,8 @@ async function logout() {
     requestedAccountType = "customer";
     sellerApplication = null;
     sellerApplications = [];
+    sellerFarms = [];
+    sellerDirectoryWarning = false;
     sellerPreapplications = [];
     sellerPreapplicationsError = "";
     selectedCrops = [];
@@ -709,63 +766,187 @@ function renderCrops() {
         crop => crop.available > CONFIG.order.minimumStock
     );
 
-    if (!availableCrops.length) {
+    if (!availableCrops.length && !sellerFarms.length) {
         list.innerHTML = `
             <p class="empty-message">
                 No vegetables are available at this time.
             </p>
         `;
+        renderFarmSearchResults();
         return;
     }
 
-    list.innerHTML = availableCrops.map(crop => {
-        const lowStock = crop.available <= CONFIG.order.lowStockWarning
-            ? `<span class="low-stock">⚠️ Low Stock</span>`
-            : "";
+    const farms = new Map(sellerFarms.map(farm => [
+        `seller:${farm.id}`,
+        { name: farm.name, sellerId: farm.id, crops: [] }
+    ]));
+    availableCrops.forEach(crop => {
+        const farmName = isGenericFarmName(crop.sellerName) ? "" : crop.sellerName.trim();
+        const farmKey = crop.sellerId
+            ? `seller:${crop.sellerId}`
+            : farmName
+                ? `farm:${farmName}`
+                : "inventory:other";
+        if (crop.sellerId && !farms.has(farmKey)) return;
+        if (!farms.has(farmKey)) {
+            farms.set(farmKey, {
+                name: farmName || "Other products",
+                sellerId: null,
+                crops: []
+            });
+        }
+        farms.get(farmKey).crops.push(crop);
+    });
 
-        const icon = getVegetableIcon(crop.id);
-        const imageMarkup = crop.image
-            ? `<img class="vegetable-photo" src="${escapeHTML(crop.image)}" alt="${escapeHTML(crop.name)}">`
-            : `<div class="vegetable-icon">${icon}</div>`;
+    if (!farms.size) {
+        list.innerHTML = `
+            <p class="empty-message">
+                No vegetables are available at this time.
+            </p>
+        `;
+        renderFarmSearchResults();
+        return;
+    }
+
+    const orderedFarms = Array.from(farms.entries()).sort(([, first], [, second]) => {
+        if (first.sellerId && !second.sellerId) return -1;
+        if (!first.sellerId && second.sellerId) return 1;
+        return first.name.localeCompare(second.name, undefined, { sensitivity: "base" });
+    });
+
+    list.innerHTML = orderedFarms.map(([farmKey, farm]) => {
+        const products = farm.crops.map((crop, index) => {
+            const lowStock = crop.available <= CONFIG.order.lowStockWarning
+                ? `<span class="low-stock">⚠️ Low Stock</span>`
+                : "";
+
+            const icon = getVegetableIcon(crop.id);
+            const imageMarkup = crop.image
+                ? `<img class="vegetable-photo" src="${escapeHTML(crop.image)}" alt="${escapeHTML(crop.name)}">`
+                : `<div class="vegetable-icon">${icon}</div>`;
+
+            return `
+                <article
+                    class="vegetable-card${index >= 5 ? " seller-product-extra hidden" : ""}"
+                    data-crop-id="${escapeHTML(crop.id)}"
+                >
+                    ${imageMarkup}
+                    <h3>${escapeHTML(crop.name)}</h3>
+                    <div class="vegetable-type">${escapeHTML(crop.type)}</div>
+
+                    <div class="vegetable-price">
+                        ${formatCurrency(crop.pricePerKg)} / kg
+                    </div>
+
+                    <div class="note">
+                        Available: ${crop.available}kg ${lowStock}
+                    </div>
+
+                    <input
+                        type="number"
+                        min="0"
+                        max="${crop.available}"
+                        value="0"
+                        class="qty-input"
+                        data-id="${escapeHTML(crop.id)}"
+                        aria-label="Quantity of ${escapeHTML(crop.name)}"
+                    >
+                </article>
+            `;
+        }).join("");
 
         return `
-            <div
-                class="vegetable-card"
-                data-crop-id="${escapeHTML(crop.id)}"
-                tabindex="0"
-                role="button"
-                aria-label="View price for ${escapeHTML(crop.name)}"
-                onclick="toggleVegetablePrice('${escapeHTML(crop.id)}')"
-                onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleVegetablePrice('${escapeHTML(crop.id)}'); }"
-            >
-                ${imageMarkup}
-                <h3>${escapeHTML(crop.name)}</h3>
-                <div class="vegetable-type">${escapeHTML(crop.type)}</div>
-                <div class="vegetable-type">Farm: ${escapeHTML(crop.sellerName)}</div>
-
-                <div class="vegetable-price">
-                    ${formatCurrency(crop.pricePerKg)} / kg
-                </div>
-
-                <div class="click-hint">Hover or click to see price</div>
-
-                <div class="note">
-                    Available: ${crop.available}kg ${lowStock}
-                </div>
-
-                <input
-                    type="number"
-                    min="0"
-                    max="${crop.available}"
-                    value="0"
-                    class="qty-input"
-                    data-id="${escapeHTML(crop.id)}"
-                    aria-label="Quantity of ${escapeHTML(crop.name)}"
-                    onclick="event.stopPropagation()"
-                >
-            </div>
+            <section class="seller-products-section" data-farm-key="${escapeHTML(farmKey)}" tabindex="-1">
+                <header class="seller-products-heading">
+                    <span class="seller-products-icon" aria-hidden="true">🌱</span>
+                    <div>
+                        <p class="seller-products-label">${farmKey === "inventory:other" ? "Store inventory" : "Fresh from"}</p>
+                        <h3 class="seller-products-title">${escapeHTML(farm.name)}</h3>
+                    </div>
+                </header>
+                ${products
+                    ? `<div class="vegetable-grid">${products}</div>`
+                    : '<p class="farm-no-vegetables">No vegetables are available from this farm right now.</p>'}
+                ${farm.crops.length > 5
+                    ? `<button class="secondary seller-products-more" onclick="toggleFarmProducts(this)" aria-expanded="false">View more</button>`
+                    : ""}
+            </section>
         `;
     }).join("");
+    renderFarmSearchResults();
+}
+
+function toggleFarmSearch() {
+    const panel = $("farm-search-panel");
+    const toggle = $("farm-search-toggle");
+    const opening = panel.classList.contains("hidden");
+
+    panel.classList.toggle("hidden", !opening);
+    toggle.setAttribute("aria-expanded", String(opening));
+    if (opening) {
+        renderFarmSearchResults();
+        $("farm-search-input").focus();
+    } else {
+        toggle.focus();
+    }
+}
+
+function renderFarmSearchResults() {
+    const results = $("farm-search-results");
+    $("seller-directory-warning").classList.toggle("hidden", !sellerDirectoryWarning);
+    const query = $("farm-search-input").value.trim().toLocaleLowerCase();
+    const matches = sellerFarms.filter(farm => farm.name.toLocaleLowerCase().includes(query));
+
+    if (!matches.length) {
+        results.innerHTML = `<p class="farm-search-empty">${sellerFarms.length ? "No farms match your search." : "No registered seller farms have a farm name to show yet."}</p>`;
+        return;
+    }
+
+    results.innerHTML = matches.map(farm => {
+        const farmSection = Array.from(document.querySelectorAll("#crops-list .seller-products-section"))
+            .find(section => section.dataset.farmKey === `seller:${farm.id}`);
+        const productCount = farmSection?.querySelectorAll(".vegetable-card").length || 0;
+        const productLabel = productCount === 1 ? "vegetable available" : "vegetables available";
+        return `
+        <button
+            type="button"
+            class="farm-search-result"
+            data-farm-key="seller:${escapeHTML(farm.id)}"
+            onclick="goToFarm(this.dataset.farmKey)"
+        >
+            <span>${escapeHTML(farm.name)}</span>
+            <span class="farm-search-count">${productCount ? `${productCount} ${productLabel}` : "No vegetables available"}</span>
+        </button>
+        `;
+    }).join("");
+}
+
+function goToFarm(farmKey) {
+    const section = Array.from(document.querySelectorAll("#crops-list .seller-products-section"))
+        .find(item => item.dataset.farmKey === farmKey);
+    if (!section) return;
+
+    $("farm-search-panel").classList.add("hidden");
+    $("farm-search-toggle").setAttribute("aria-expanded", "false");
+    $("farm-search-toggle").focus();
+    section.classList.add("farm-search-target");
+    section.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start"
+    });
+    section.focus({ preventScroll: true });
+    window.setTimeout(() => section.classList.remove("farm-search-target"), 1800);
+}
+
+function toggleFarmProducts(button) {
+    const farmSection = button.closest(".seller-products-section");
+    const isExpanded = button.getAttribute("aria-expanded") === "true";
+
+    farmSection.querySelectorAll(".seller-product-extra").forEach(product => {
+        product.classList.toggle("hidden", isExpanded);
+    });
+    button.setAttribute("aria-expanded", String(!isExpanded));
+    button.textContent = isExpanded ? "View more" : "Show less";
 }
 
 function getVegetableIcon(id) {
@@ -782,15 +963,6 @@ function getVegetableIcon(id) {
     return icons[id] || "🥦";
 }
 
-function toggleVegetablePrice(cropId) {
-    const card = document.querySelector(
-        `.vegetable-card[data-crop-id="${CSS.escape(cropId)}"]`
-    );
-
-    if (!card) return;
-
-    card.classList.toggle("active");
-}
 function goToSelection() {
     selectedCrops = [];
 
@@ -1314,12 +1486,23 @@ function renderSellerProducts() {
     if (!table) return;
     const sellerProducts = crops.filter(crop => crop.sellerId === currentUser?.id);
     if (!sellerProducts.length) {
-        table.innerHTML = '<tr><td colspan="4">You have not listed any farm products yet.</td></tr>';
+        table.innerHTML = '<tr><td colspan="5">You have not listed any farm products yet.</td></tr>';
         return;
     }
 
     table.innerHTML = sellerProducts.map(crop => `
         <tr>
+            <td>
+                <div class="seller-product-photo-control">
+                    ${crop.image
+                        ? `<img class="seller-product-thumbnail" src="${escapeHTML(crop.image)}" alt="${escapeHTML(crop.name)} photo">`
+                        : '<span class="seller-photo-placeholder">No photo</span>'}
+                    <label class="seller-photo-upload">
+                        ${crop.image ? "Change photo" : "Add photo"}
+                        <input type="file" accept="image/*" data-product-id="${escapeHTML(crop.id)}" onchange="handleSellerProductImageUpload(this)">
+                    </label>
+                </div>
+            </td>
             <td>${escapeHTML(crop.name)}</td>
             <td><input class="seller-price input-sm" type="number" min="0" step="0.01" value="${crop.pricePerKg}" data-product-id="${escapeHTML(crop.id)}"></td>
             <td><input class="seller-stock input-sm" type="number" min="0" step="1" value="${crop.available}" data-product-id="${escapeHTML(crop.id)}"></td>
@@ -1341,6 +1524,21 @@ async function addSellerCrop(event) {
         return alert("Enter a product name, category, non-negative price, and whole-number stock.");
     }
 
+    const farmName = getCurrentSellerFarmName();
+    if (!farmName) {
+        return alert("Your approved farm name is unavailable. Please contact the administrator before listing products.");
+    }
+
+    let image = "";
+    const imageFile = $("seller-new-crop-image").files?.[0];
+    if (imageFile) {
+        try {
+            image = await resizeImageForStorage(imageFile, 480, 320, true, "image/jpeg", .78);
+        } catch (error) {
+            return alert(`⚠️ Could not process product photo: ${error.message}`);
+        }
+    }
+
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "product";
     const id = `${currentUser.id.slice(0, 8)}-${slug}-${crypto.randomUUID().slice(0, 8)}`;
     const product = {
@@ -1350,9 +1548,9 @@ async function addSellerCrop(event) {
         stock_per_unit: stock,
         stock_kg: stock,
         price_per_kg: price,
-        image: "",
+        image,
         seller_id: currentUser.id,
-        farm_name: sellerApplication?.farm_name || currentUser.fullName
+        farm_name: farmName
     };
 
     try {
@@ -1371,6 +1569,36 @@ async function addSellerCrop(event) {
     renderSellerProducts();
     renderSellerOverview();
     renderCrops();
+}
+
+async function handleSellerProductImageUpload(input) {
+    const crop = crops.find(item => item.id === input.dataset.productId);
+    const file = input.files?.[0];
+    if (!crop || !file) return;
+    if (!currentUser || !isSeller || crop.sellerId !== currentUser.id || isAdmin) {
+        input.value = "";
+        return alert("You can only change photos for your own farm products.");
+    }
+
+    try {
+        const image = await resizeImageForStorage(file, 480, 320, true, "image/jpeg", .78);
+        const { data, error } = await supabaseClient
+            .from("products")
+            .update({ image, updated_at: new Date().toISOString() })
+            .eq("id", crop.id)
+            .eq("seller_id", currentUser.id)
+            .select("id")
+            .single();
+        if (error) throw error;
+        if (!data) throw new Error("The product no longer exists.");
+        crop.image = image;
+        renderSellerProducts();
+        renderCrops();
+    } catch (error) {
+        alert(`⚠️ Could not save product photo: ${error.message}`);
+    } finally {
+        input.value = "";
+    }
 }
 
 async function saveSellerChanges() {
@@ -1427,7 +1655,7 @@ function renderSellerOrders() {
             <div class="order-admin-head">
                 <strong>${escapeHTML(order.id)}</strong>
                 <select ${["Delivered", "Cancelled", "Completed"].includes(order.status) ? "disabled" : ""}
-                    aria-label="Update status for order ${escapeHTML(order.id)}"
+                    aria-label="Update delivery status for order ${escapeHTML(order.id)}"
                     onchange="updateOrderStatus('${escapeHTML(order.id)}', this.value)">
                     ${(sellerStatusOptions[order.status] || [order.status]).map(status => `
                         <option value="${status}" ${order.status === status ? "selected" : ""}>${status}</option>
@@ -1915,66 +2143,46 @@ async function resetStock() {
 }
 
 /* =========================================================
-   ADMIN — CUSTOMER ORDERS
+   ADMIN — DELIVERY RECEIPTS
    ========================================================= */
 function renderAdminOrders() {
     const container = $("admin-orders");
     if (!container) return;
 
-    if (!orders.length) {
-        container.innerHTML = '<p class="empty-message">No customer orders yet.</p>';
+    const receipts = orders
+        .filter(order => order.deliveryReceipt)
+        .map(order => ({
+            receipt: order.deliveryReceipt,
+            customerReceivedAt: order.customerReceivedAt
+        }));
+
+    if (!receipts.length) {
+        container.innerHTML = '<p class="empty-message">No delivery receipts have been issued yet.</p>';
         return;
     }
 
-    container.innerHTML = orders.map(order => `
-        <div class="order-admin-card">
-            <div class="order-admin-head">
-                <strong>${escapeHTML(order.id)}</strong>
-                <select onchange="updateOrderStatus('${escapeHTML(order.id)}', this.value)">
-                    ${["Pending","Preparing","Ready","Delivered","Completed","Cancelled"].map(status => `
-                        <option value="${status}" ${order.status === status ? "selected" : ""}>${status}</option>
-                    `).join("")}
-                </select>
-            </div>
-            <p><strong>Customer:</strong> ${escapeHTML(order.customer.fullName)}</p>
-            <p><strong>Email:</strong> ${escapeHTML(order.customer.email)}</p>
-            ${order.customer.phone ? `<p><strong>Phone:</strong> ${escapeHTML(order.customer.phone)}</p>` : ""}
-            <p><strong>Order Type:</strong> ${escapeHTML(CONFIG.orderTypes[order.orderType]?.label || order.orderType)}</p>
-            <p><strong>Payment Method:</strong> ${escapeHTML(getPaymentMethodLabel(order.paymentMethod))}</p>
-            <p><strong>Payment Reference:</strong> ${escapeHTML(order.paymentReference || "Not provided")}</p>
-            <label>Payment Status
-                <select onchange="updatePaymentStatus('${escapeHTML(order.id)}', this.value)">
-                    ${["Awaiting verification", "Due at cashier", "Payment submitted", "Paid", "Refunded"].map(status => `
-                        <option value="${status}" ${(order.paymentStatus || "Awaiting verification") === status ? "selected" : ""}>${status}</option>
-                    `).join("")}
-                </select>
-            </label>
-            <p><strong>Date:</strong> ${escapeHTML(order.reservationDate)}</p>
-            <p><strong>Address:</strong> ${escapeHTML(order.customer.address || "N/A")}</p>
+    container.innerHTML = receipts.map(({ receipt, customerReceivedAt }) => `
+        <div class="delivery-receipt">
+            <h4>🧾 Delivery Receipt</h4>
+            <p><strong>Receipt ID:</strong> ${escapeHTML(receipt.receiptId)}</p>
+            <p><strong>Transaction ID:</strong> ${escapeHTML(receipt.transactionId)}</p>
+            <p><strong>Prepared by:</strong> ${escapeHTML(receipt.preparedBy || "Seller")}</p>
+            <p><strong>Issued at:</strong> ${escapeHTML(new Date(receipt.issuedAt).toLocaleString("en-PH"))}</p>
+            ${receipt.customer?.fullName ? `<p><strong>Customer:</strong> ${escapeHTML(receipt.customer.fullName)}</p>` : ""}
+            ${receipt.customer?.phone ? `<p><strong>Phone:</strong> ${escapeHTML(receipt.customer.phone)}</p>` : ""}
+            ${receipt.customer?.address ? `<p><strong>Address:</strong> ${escapeHTML(receipt.customer.address)}</p>` : ""}
+            <p><strong>Payment:</strong> ${escapeHTML(getPaymentMethodLabel(receipt.paymentMethod))} — ${escapeHTML(receipt.paymentStatus || "Not recorded")}</p>
+            ${receipt.paymentReference ? `<p><strong>Payment Reference:</strong> ${escapeHTML(receipt.paymentReference)}</p>` : ""}
+            <p><strong>Items:</strong></p>
             <div class="order-admin-items">
-                ${order.items.map(item => `
+                ${(Array.isArray(receipt.items) ? receipt.items : []).map(item => `
                     <div>${escapeHTML(item.cropName)} — ${item.quantity}kg × ${formatCurrency(item.pricePerKg)} = ${formatCurrency(item.subtotal)}</div>
                 `).join("")}
             </div>
-            <p><strong>Total:</strong> ${order.totalQuantity}kg · ${formatCurrency(order.totalAmount)}</p>
-
-            ${
-                order.deliveryReceipt
-                    ? `
-                        <div class="delivery-receipt">
-                            <h4>🧾 Delivery Receipt Issued</h4>
-                            <p><strong>Receipt ID:</strong> ${escapeHTML(order.deliveryReceipt.receiptId)}</p>
-                            <p><strong>Issued by:</strong> ${escapeHTML(order.deliveryReceipt.preparedBy)}</p>
-                            <p><strong>Issued at:</strong> ${escapeHTML(new Date(order.deliveryReceipt.issuedAt).toLocaleString("en-PH"))}</p>
-                            ${
-                                order.customerReceivedAt
-                                    ? `<span class="received-badge">✅ Customer received the item</span>`
-                                    : `<span class="status-pill">⏳ Waiting for customer confirmation</span>`
-                            }
-                        </div>
-                    `
-                    : ""
-            }
+            <p><strong>Total:</strong> ${receipt.totalQuantity}kg · ${formatCurrency(receipt.totalAmount)}</p>
+            ${customerReceivedAt
+                ? '<span class="received-badge">✅ Customer received the item</span>'
+                : '<span class="status-pill">⏳ Waiting for customer confirmation</span>'}
         </div>
     `).join("");
 }
@@ -2001,8 +2209,9 @@ async function updatePaymentStatus(orderId, paymentStatus) {
 }
 
 async function updateOrderStatus(orderId, status) {
-    if (!isAdmin && (!isSeller || !orders.some(item => item.id === orderId && item.sellerId === currentUser?.id))) {
-        return alert("❌ Only the order's seller or the owner administrator can update order status.");
+    if (!currentUser || !isSeller || isAdmin
+        || !orders.some(item => item.id === orderId && item.sellerId === currentUser.id)) {
+        return alert("❌ Only the assigned seller can update this order's delivery status.");
     }
 
     if (!orders.some(item => item.id === orderId)) return;
@@ -2019,7 +2228,7 @@ async function updateOrderStatus(orderId, status) {
     if (error) return alert(`⚠️ Could not update order status: ${error.message}`);
     await refreshShopData();
     if (status === "Delivered") {
-        alert("✅ Order marked as DELIVERED. The delivery receipt is now available to the customer.");
+        alert("✅ Order marked as DELIVERED. The delivery receipt is now available to the customer and owner.");
     }
 }
 
@@ -2186,7 +2395,6 @@ function renderCustomerOrders() {
                                 <p><strong>Receipt ID:</strong> ${escapeHTML(receipt.receiptId)}</p>
                                 <p><strong>Transaction ID:</strong> ${escapeHTML(receipt.transactionId)}</p>
                                 <p><strong>Prepared by:</strong> ${escapeHTML(receipt.preparedBy)}</p>
-                                <p><strong>Admin email:</strong> ${escapeHTML(receipt.adminEmail)}</p>
                                 <p><strong>Issued:</strong> ${escapeHTML(new Date(receipt.issuedAt).toLocaleString("en-PH"))}</p>
                                 <p><strong>Payment:</strong> ${escapeHTML(getPaymentMethodLabel(receipt.paymentMethod))} — ${escapeHTML(receipt.paymentStatus || "Not recorded")}</p>
                                 ${receipt.paymentReference ? `<p><strong>Payment Reference:</strong> ${escapeHTML(receipt.paymentReference)}</p>` : ""}

@@ -119,7 +119,7 @@
 <section id="seller-panel" class="card hidden">
     <h2>🌾 Seller Control Panel</h2>
     <span class="admin-badge">✅ APPROVED SELLER — Your farm's inventory and orders only</span>
-    <p class="note">Changes affect only your products. Orders containing multiple farms are split at checkout so each seller manages their own delivery status. Paid sales include only orders marked Paid by the owner.</p>
+    <p class="note">Changes affect only your products. Orders containing multiple farms are split at checkout, and you manage the delivery status for your farm's orders.</p>
     <div id="seller-overview" class="seller-overview" aria-live="polite"></div>
     <h3>➕ Add Farm Product</h3>
     <form id="seller-add-crop-form" class="add-crop-form" onsubmit="addSellerCrop(event)">
@@ -127,12 +127,17 @@
         <input type="text" id="seller-new-crop-type" placeholder="Category" maxlength="40" value="Vegetable" required>
         <input type="number" id="seller-new-crop-price" placeholder="Price per kg" min="0" step="0.01" required>
         <input type="number" id="seller-new-crop-stock" placeholder="Stock in kg" min="0" step="1" required>
+        <label class="seller-product-image-field" for="seller-new-crop-image">
+            Product photo (optional, max 12 MB)
+            <span class="seller-product-image-help">Customers will see this on your product card.</span>
+            <input type="file" id="seller-new-crop-image" accept="image/*">
+        </label>
         <button type="submit" class="sm">Add Product</button>
     </form>
     <div class="admin-table-wrap">
         <table>
             <thead>
-                <tr><th>Product</th><th>Price (₱ / kg)</th><th>Stock (kg)</th><th>Status</th></tr>
+                <tr><th>Photo</th><th>Product</th><th>Price (₱ / kg)</th><th>Stock (kg)</th><th>Status</th></tr>
             </thead>
             <tbody id="seller-products-table"></tbody>
         </table>
@@ -146,14 +151,47 @@
 <section id="browse-section" class="card hidden">
     <h2 class="browse-title">🥬 Fresh Vegetables</h2>
     <p class="note browse-subtitle">
-        Welcome to Farm Fresh! Hover over or click a vegetable to see its price.
+        Browse fresh vegetables from our registered seller farms. Prices are shown on each product.
     </p>
     <p class="note browse-subtitle">
         Available vegetables have stock greater than
         <strong><span id="browse-stock-limit">15</span>kg</strong>.
     </p>
 
-    <div id="crops-list" class="vegetable-grid"></div>
+    <div class="farm-search">
+        <button
+            type="button"
+            class="secondary farm-search-toggle"
+            id="farm-search-toggle"
+            onclick="toggleFarmSearch()"
+            aria-expanded="false"
+            aria-controls="farm-search-panel"
+        >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10.8" cy="10.8" r="6.8"></circle>
+                <path d="m16 16 5 5"></path>
+            </svg>
+            <span>Search farms</span>
+        </button>
+        <div id="farm-search-panel" class="farm-search-panel hidden">
+            <p class="farm-search-panel-title">Registered seller farms</p>
+            <label for="farm-search-input">Find a farm
+                <input
+                    type="search"
+                    id="farm-search-input"
+                    placeholder="Type a farm name"
+                    autocomplete="off"
+                    oninput="renderFarmSearchResults()"
+                >
+            </label>
+            <p id="seller-directory-warning" class="seller-directory-warning hidden" role="status">
+                The seller directory setup is incomplete. Farms without listed products may not appear yet.
+            </p>
+            <div id="farm-search-results" class="farm-search-results" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <div id="crops-list" class="seller-products-list"></div>
 
     <button onclick="goToSelection()">Next: Select Vegetables & Quantity →</button>
     <button class="secondary" onclick="showCustomerOrders()">📦 My Orders & Deliveries</button>
@@ -161,7 +199,7 @@
 
 <section id="customer-orders-section" class="card hidden">
     <h2>📦 My Orders & Deliveries</h2>
-    <p class="note">Delivered orders show the receipt prepared by the administrator. Tap <strong>Item Received</strong> to acknowledge receipt; the delivery receipt will then be removed.</p>
+    <p class="note">Delivered orders show the receipt prepared by the seller. Tap <strong>Item Received</strong> to acknowledge receipt; the delivery receipt will then be removed.</p>
     <div id="customer-orders"></div>
     <button onclick="showBrowse()">← Back to Shop</button>
 </section>
@@ -269,8 +307,8 @@
 
     <hr>
 
-    <h3>📦 Customer Orders</h3>
-    <p class="note">Orders submitted by customers appear here. Update the status as you process each order.</p>
+    <h3>🧾 Delivery Receipts</h3>
+    <p class="note">Only delivery receipts appear here. Sellers manage their own orders and mark them delivered to issue a receipt.</p>
     <div id="admin-orders"></div>
 
     <hr>
