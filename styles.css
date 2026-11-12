@@ -23,7 +23,8 @@
         #receipt-section,
         #admin-panel,
         #seller-panel,
-        #seller-application-section {
+        #seller-application-section,
+        #seller-preapplication-section {
             width: min(950px, calc(100% - 40px));
             margin-left: auto;
             margin-right: auto;
@@ -540,6 +541,15 @@
             border-top: 1px solid #ddd;
         }
 
+        .seller-preapplication-honeypot {
+            position: absolute;
+            left: -10000px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
+
         .signup-form h3 {
             text-align: center;
             color: #34772c;
@@ -588,7 +598,8 @@
         #receipt-section,
         #admin-panel,
         #seller-panel,
-        #seller-application-section {
+        #seller-application-section,
+        #seller-preapplication-section {
             width: min(100% - 32px, 1050px);
             margin-left: auto;
             margin-right: auto;
@@ -608,6 +619,32 @@
             margin: 12px 0;
             border-radius: 8px;
             background: #f2f7ee;
+        }
+
+        .seller-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin: 18px 0;
+        }
+
+        .seller-overview article {
+            display: grid;
+            gap: 6px;
+            padding: 16px;
+            border: 1px solid #cfd9ca;
+            border-radius: 12px;
+            background: rgba(255,255,255,.95);
+        }
+
+        .seller-overview strong {
+            color: #27682b;
+            font-size: 22px;
+        }
+
+        .seller-overview span {
+            color: #52634e;
+            font-size: 14px;
         }
 
         .seller-application-card {

@@ -54,15 +54,11 @@
 
     <p class="contact-admin"><button type="button" class="text-link" onclick="handlePasswordReset()">Forgot password?</button></p>
     <p class="contact-admin">Don’t have an account? <button type="button" class="text-link" onclick="showSignup()">Create an account</button></p>
+    <p class="contact-admin">Want to sell as a farmer? <button type="button" class="text-link" onclick="showSellerPreapplication()">Apply for approval first</button></p>
 
     <form id="signup-form" class="hidden signup-form" onsubmit="handleSignup(event)">
         <h3>Create Your Account</h3>
-        <label for="account-type">Account type</label>
-        <select id="account-type" required>
-            <option value="customer">Buyer — shop and place orders</option>
-            <option value="seller">Farmer seller — apply to sell after signup</option>
-        </select>
-        <p class="note">Seller accounts are reviewed by the owner after you submit a farmer certificate. Owner Admin accounts are invitation-only and cannot be created here.</p>
+        <p class="note">Buyer accounts can be created here. Farmers must apply first; the owner reviews the application and sends an account invitation only after approval. Owner Admin accounts are invitation-only.</p>
         <input type="text" id="fullName" placeholder="Full Name" autocomplete="name" required>
         <input type="email" id="email" placeholder="Email Address" autocomplete="email" required>
         <input type="tel" id="phone" placeholder="Phone Number" autocomplete="tel" required>
@@ -71,6 +67,28 @@
         <button type="submit" class="login-btn">CREATE ACCOUNT</button>
         <button type="button" class="back-login-btn" onclick="showLogin()">← Back to Login</button>
     </form>
+</section>
+
+<section id="seller-preapplication-section" class="card hidden">
+    <h2>🌱 Apply to Sell as a Farmer</h2>
+    <p class="note">Submit your details and farmer certificate for owner review. No account is created until your application is approved. Approved farmers receive an email invitation to set their own password.</p>
+    <form id="seller-preapplication-form" class="signup-form" onsubmit="submitSellerPreapplication(event)">
+        <input type="text" name="full_name" placeholder="Full Name" autocomplete="name" maxlength="120" required>
+        <input type="email" name="email" placeholder="Email Address" autocomplete="email" maxlength="254" required>
+        <input type="tel" name="phone" placeholder="Phone Number" autocomplete="tel" maxlength="40" required>
+        <input type="text" name="address" placeholder="Address" autocomplete="street-address" maxlength="300" required>
+        <input type="text" name="farm_name" placeholder="Farm name" maxlength="100" required>
+        <textarea name="farm_description" placeholder="Tell us about your farm (optional)" maxlength="1000" rows="4"></textarea>
+        <div class="seller-preapplication-honeypot" aria-hidden="true">
+            <label for="seller-preapplication-website">Leave this field empty</label>
+            <input type="text" id="seller-preapplication-website" name="website" autocomplete="off" tabindex="-1">
+        </div>
+        <input type="hidden" id="seller-preapplication-started-at" name="submission_started_at">
+        <label for="preapplication-certificate">Farmer certificate (PDF, JPG, or PNG; max 5 MB)</label>
+        <input type="file" id="preapplication-certificate" name="certificate" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
+        <button type="submit" class="login-btn">SUBMIT FARMER APPLICATION</button>
+    </form>
+    <button class="secondary" onclick="backToSellerPreapplicationLogin()">← Back to Login</button>
 </section>
 
 <section id="password-section" class="card hidden">
@@ -101,7 +119,8 @@
 <section id="seller-panel" class="card hidden">
     <h2>🌾 Seller Control Panel</h2>
     <span class="admin-badge">✅ APPROVED SELLER — Your farm's inventory and orders only</span>
-    <p class="note">Changes affect only your products. Orders containing multiple farms are split at checkout so each seller manages their own delivery status.</p>
+    <p class="note">Changes affect only your products. Orders containing multiple farms are split at checkout so each seller manages their own delivery status. Paid sales include only orders marked Paid by the owner.</p>
+    <div id="seller-overview" class="seller-overview" aria-live="polite"></div>
     <h3>➕ Add Farm Product</h3>
     <form id="seller-add-crop-form" class="add-crop-form" onsubmit="addSellerCrop(event)">
         <input type="text" id="seller-new-crop-name" placeholder="Product name" maxlength="60" required>
@@ -138,7 +157,6 @@
 
     <button onclick="goToSelection()">Next: Select Vegetables & Quantity →</button>
     <button class="secondary" onclick="showCustomerOrders()">📦 My Orders & Deliveries</button>
-    <button id="apply-seller-button" class="secondary hidden" onclick="showSellerApplication()">🌱 Apply to Sell</button>
 </section>
 
 <section id="customer-orders-section" class="card hidden">
@@ -257,8 +275,15 @@
 
     <hr>
 
+    <h3>🌱 Pre-registration Farmer Applications</h3>
+    <p class="note">Approve an application to create a limited seller account and email the farmer a secure invitation. Rejection does not create an account.</p>
+    <button class="secondary" onclick="refreshSellerPreapplications()">↻ Refresh Farmer Applications</button>
+    <div id="seller-preapplications"></div>
+
+    <hr>
+
     <h3>🌱 Farmer Applications</h3>
-    <p class="note">Review each private farmer certificate before approving seller access. Approval grants access only to that farmer's products and orders—not owner controls.</p>
+    <p class="note">Existing applications submitted by accounts created before pre-approval was enabled. Approval grants access only to that farmer's products and orders—not owner controls.</p>
     <div id="seller-applications"></div>
 
     <hr>

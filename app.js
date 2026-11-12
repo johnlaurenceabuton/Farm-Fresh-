@@ -75,6 +75,8 @@ let reservationDates = [];
 let orders = [];
 let sellerApplication = null;
 let sellerApplications = [];
+let sellerPreapplications = [];
+let sellerPreapplicationsError = "";
 let paymentQrs = {};
 let realtimeChannel = null;
 let signupInProgress = false;
@@ -230,6 +232,27 @@ async function loadAllData() {
     }));
     sellerApplications = sellerApplicationsResult.data;
     sellerApplication = sellerApplications.find(item => item.user_id === currentUser.id) || null;
+    if (isAdmin) {
+        sellerPreapplicationsError = "";
+        try {
+            const { data: preapplicationData, error: preapplicationError } = await supabaseClient.functions.invoke(
+                "seller-applications",
+                { body: { action: "list" } }
+            );
+            if (preapplicationError) throw preapplicationError;
+            if (!Array.isArray(preapplicationData?.applications)) {
+                throw new Error("The seller application service returned an invalid application list.");
+            }
+            sellerPreapplications = preapplicationData.applications;
+        } catch (error) {
+            sellerPreapplications = [];
+            sellerPreapplicationsError = error.message;
+            console.error("Could not load pre-registration seller applications:", error);
+        }
+    } else {
+        sellerPreapplications = [];
+        sellerPreapplicationsError = "";
+    }
     paymentQrs = Object.fromEntries(
         paymentResult.data.map(row => [row.method, row.image_data])
     );
@@ -255,6 +278,62 @@ function showSignup() {
 function showLogin() {
     show("login-form");
     hide("signup-form");
+}
+
+function showSellerPreapplication() {
+    if (currentUser) return alert("Please log out before submitting a pre-registration seller application.");
+    hide("auth-section");
+    hideSections([
+        "browse-section",
+        "order-section",
+        "summary-section",
+        "receipt-section",
+        "customer-orders-section",
+        "admin-panel",
+        "seller-panel",
+        "seller-application-section",
+        "password-section"
+    ]);
+    show("seller-preapplication-section");
+    $("seller-preapplication-started-at").value = Date.now().toString();
+}
+
+function backToSellerPreapplicationLogin() {
+    hide("seller-preapplication-section");
+    show("auth-section");
+    showLogin();
+}
+
+async function submitSellerPreapplication(event) {
+    event.preventDefault();
+    const form = $("seller-preapplication-form");
+    const submitButton = form.querySelector('[type="submit"]');
+    const formData = new FormData(form);
+    submitButton.disabled = true;
+
+    try {
+        const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+        if (sessionError) throw sessionError;
+        const headers = { apikey: SUPABASE_PUBLISHABLE_KEY };
+        if (sessionData.session) {
+            headers.Authorization = `Bearer ${sessionData.session.access_token}`;
+        }
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/seller-applications`, {
+            method: "POST",
+            headers,
+            body: formData
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "The application could not be submitted.");
+        form.reset();
+        $("seller-preapplication-started-at").value = Date.now().toString();
+        alert(data.message);
+        backToSellerPreapplicationLogin();
+    } catch (error) {
+        alert(`⚠️ Could not submit the seller application: ${error.message}`);
+    } finally {
+        submitButton.disabled = false;
+    }
 }
 
 function showSellerApplication() {
@@ -395,7 +474,7 @@ async function handleSignup(event) {
         const { data, error } = await supabaseClient.auth.signUp({
             email,
             password,
-            options: { data: { full_name: fullName, phone, address, account_type: $("account-type").value } }
+            options: { data: { full_name: fullName, phone, address, account_type: "customer" } }
         });
         if (error) {
             const message = error.message.toLowerCase();
@@ -497,8 +576,7 @@ async function postLoginSetup() {
     subscribeToRealtimeUpdates();
     if (isAdmin) showAdminPanel();
     else if (isSeller) showSellerPanel();
-    else if (requestedAccountType === "seller"
-        && (!sellerApplication || sellerApplication.status === "rejected")) showSellerApplication();
+    else if (requestedAccountType === "seller" && sellerApplication?.status === "pending") showSellerApplication();
     else showBrowse();
 }
 
@@ -575,6 +653,8 @@ async function logout() {
     requestedAccountType = "customer";
     sellerApplication = null;
     sellerApplications = [];
+    sellerPreapplications = [];
+    sellerPreapplicationsError = "";
     selectedCrops = [];
 
     hide("nav-area");
@@ -593,7 +673,8 @@ async function logout() {
         "customer-orders-section",
         "password-section",
         "seller-panel",
-        "seller-application-section"
+        "seller-application-section",
+        "seller-preapplication-section"
     ]);
 
     $("login-email").value = "";
@@ -614,10 +695,9 @@ async function logout() {
    CUSTOMER — BROWSE CROPS
    ========================================================= */
 function showBrowse() {
-    hideSections(["order-section", "summary-section", "receipt-section", "admin-panel", "customer-orders-section", "password-section", "seller-panel", "seller-application-section"]);
+    hideSections(["order-section", "summary-section", "receipt-section", "admin-panel", "customer-orders-section", "password-section", "seller-panel", "seller-application-section", "seller-preapplication-section"]);
     show("browse-section");
     show("header-note");
-    $("apply-seller-button").classList.toggle("hidden", isAdmin || isSeller);
     updateSellerViewToggle();
     renderCrops();
 }
@@ -1143,6 +1223,7 @@ function showAdminPanel() {
     renderAdminPaymentQrs();
     renderAdminDates();
     renderAdminOrders();
+    renderSellerPreapplications();
     renderSellerApplications();
 }
 
@@ -1204,8 +1285,28 @@ function showSellerPanel() {
     ]);
     show("seller-panel");
     updateSellerViewToggle();
+    renderSellerOverview();
     renderSellerProducts();
     renderSellerOrders();
+}
+
+function renderSellerOverview() {
+    const container = $("seller-overview");
+    if (!container || !currentUser || !isSeller || isAdmin) return;
+    const sellerOrders = orders.filter(order => order.sellerId === currentUser.id);
+    const paidSales = sellerOrders
+        .filter(order => order.paymentStatus === "Paid" && order.status !== "Cancelled")
+        .reduce((total, order) => total + order.totalAmount, 0);
+    const deliveredOrders = sellerOrders.filter(order => ["Delivered", "Completed"].includes(order.status));
+    const openOrders = sellerOrders.filter(order => !["Delivered", "Completed", "Cancelled"].includes(order.status));
+    const productCount = crops.filter(crop => crop.sellerId === currentUser.id).length;
+
+    container.innerHTML = `
+        <article><strong>${formatCurrency(paidSales)}</strong><span>Paid sales</span></article>
+        <article><strong>${deliveredOrders.length}</strong><span>Delivered orders</span></article>
+        <article><strong>${openOrders.length}</strong><span>Open orders</span></article>
+        <article><strong>${productCount}</strong><span>Listed products</span></article>
+    `;
 }
 
 function renderSellerProducts() {
@@ -1268,6 +1369,7 @@ async function addSellerCrop(event) {
         return alert(`✅ Product was listed, but the latest inventory could not be loaded: ${loadError.message}`);
     }
     renderSellerProducts();
+    renderSellerOverview();
     renderCrops();
 }
 
@@ -1393,6 +1495,100 @@ async function renderSellerApplications() {
     } catch (error) {
         console.error("Could not prepare seller application certificates:", error);
         container.innerHTML = `<p class="empty-message">Could not load certificate links: ${escapeHTML(error.message)}</p>`;
+    }
+}
+
+function renderSellerPreapplications() {
+    const container = $("seller-preapplications");
+    if (!container || !isAdmin) return;
+    if (sellerPreapplicationsError) {
+        container.innerHTML = `<p class="empty-message">Could not load pre-registration applications: ${escapeHTML(sellerPreapplicationsError)}</p>`;
+        return;
+    }
+    if (!sellerPreapplications.length) {
+        container.innerHTML = '<p class="empty-message">No pre-registration farmer applications yet.</p>';
+        return;
+    }
+
+    container.innerHTML = sellerPreapplications.map(application => {
+        const canApprove = application.status === "pending";
+        const canRetry = application.status === "processing";
+        const certificate = application.certificate_url
+            ? `<a href="${escapeHTML(application.certificate_url)}" target="_blank" rel="noopener noreferrer">Open private farmer certificate</a>`
+            : "<p>Certificate link is unavailable.</p>";
+        const reviewControls = canApprove
+            ? `<textarea id="pre-seller-review-${escapeHTML(application.id)}" maxlength="1000" placeholder="Optional review note"></textarea>
+                <button onclick="reviewSellerPreapplication('${escapeHTML(application.id)}', 'approved')">Approve &amp; Send Invite</button>
+                <button class="danger" onclick="reviewSellerPreapplication('${escapeHTML(application.id)}', 'rejected')">Reject</button>`
+            : canRetry
+                ? `<p class="note">Invitation setup is still processing. If no invitation arrives, retry after a few minutes.</p>
+                    <button onclick="reviewSellerPreapplication('${escapeHTML(application.id)}', 'approved')">Retry Approval</button>`
+                : "";
+        return `
+            <article class="seller-application-card">
+                <h4>${escapeHTML(application.farm_name)} — ${escapeHTML(application.status)}</h4>
+                <p><strong>Applicant:</strong> ${escapeHTML(application.full_name)} (${escapeHTML(application.email)})</p>
+                <p><strong>Phone:</strong> ${escapeHTML(application.phone)}</p>
+                <p><strong>Address:</strong> ${escapeHTML(application.address)}</p>
+                <p>${escapeHTML(application.farm_description || "No farm description provided.")}</p>
+                <p><strong>Submitted:</strong> ${escapeHTML(new Date(application.created_at).toLocaleString("en-PH"))}</p>
+                ${certificate}
+                ${application.review_notes ? `<p><strong>Review note:</strong> ${escapeHTML(application.review_notes)}</p>` : ""}
+                ${reviewControls}
+            </article>
+        `;
+    }).join("");
+}
+
+async function refreshSellerPreapplications() {
+    if (!isAdmin) return alert("Only the owner administrator can view farmer applications.");
+    try {
+        const { data, error } = await supabaseClient.functions.invoke("seller-applications", {
+            body: { action: "list" }
+        });
+        if (error) throw error;
+        if (!Array.isArray(data?.applications)) {
+            throw new Error("The seller application service returned an invalid application list.");
+        }
+        sellerPreapplications = data.applications;
+        sellerPreapplicationsError = "";
+        renderSellerPreapplications();
+    } catch (error) {
+        sellerPreapplicationsError = error.message;
+        renderSellerPreapplications();
+        alert(`⚠️ Could not refresh farmer applications: ${error.message}`);
+    }
+}
+
+async function reviewSellerPreapplication(applicationId, decision) {
+    if (!isAdmin || !["approved", "rejected"].includes(decision)) {
+        return alert("Only the owner administrator can review seller applications.");
+    }
+    const application = sellerPreapplications.find(item => item.id === applicationId);
+    if (!application || !["pending", "processing"].includes(application.status)) {
+        return alert("This application is no longer available for review.");
+    }
+    if (decision === "rejected" && !confirm(`Reject ${application.farm_name}'s seller application?`)) return;
+    if (decision === "approved" && !confirm(
+        `Approve ${application.farm_name}? This creates a seller account and emails an invitation. The seller will only manage their own products and orders.`
+    )) return;
+
+    const reviewNotes = $(`pre-seller-review-${applicationId}`)?.value.trim() || "";
+    try {
+        const { data, error } = await supabaseClient.functions.invoke("seller-applications", {
+            body: {
+                action: "review",
+                application_id: applicationId,
+                decision,
+                review_notes: reviewNotes
+            }
+        });
+        if (error) throw error;
+        await loadAllData();
+        showAdminPanel();
+        alert(data.message);
+    } catch (error) {
+        alert(`⚠️ Could not review seller application: ${error.message}`);
     }
 }
 
@@ -2216,16 +2412,26 @@ async function initializeApp() {
     $("min-date-label").textContent =
         CONFIG.order.minimumReservationDates;
 
-    show("login-form");
-    const { data, error } = await supabaseClient.auth.getSession();
-    if (error) {
-        console.error("Could not restore Supabase session:", error);
-        alert(`⚠️ Could not restore login session: ${error.message}`);
-        return;
-    }
-    if (data.session) {
-        await completeSupabaseLogin(data.session.user);
-        if (authLinkType === "invite" || authLinkType === "recovery") showPasswordSection();
+    show("auth-section");
+    showLogin();
+
+    try {
+        const { data, error } = await supabaseClient.auth.getSession();
+        if (error) {
+            console.error("Could not check Supabase session:", error);
+            return;
+        }
+        if (data?.session) {
+            if (authLinkType === "invite" || authLinkType === "recovery") {
+                await completeSupabaseLogin(data.session.user);
+                showPasswordSection();
+            } else {
+                console.info("Clearing stale session so the login page remains the landing screen.");
+                await supabaseClient.auth.signOut();
+            }
+        }
+    } catch (error) {
+        console.error("Could not reset stale session:", error);
     }
 }
 

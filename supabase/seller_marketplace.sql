@@ -1,4 +1,5 @@
 -- Run after schema.sql on projects that already have the original Farm Fresh schema.
+-- Run seller_preapproval.sql after this file to enable pre-account applications.
 create extension if not exists pgcrypto;
 
 alter table public.profiles
@@ -56,6 +57,7 @@ set search_path = public, pg_temp
 as $$
 begin
     if auth.uid() is not null
+       and coalesce(auth.role(), '') <> 'service_role'
        and new.role is distinct from old.role
        and not public.is_farm_fresh_admin() then
         raise exception 'Only the owner can change account roles';
@@ -86,31 +88,11 @@ for select to authenticated
 using (user_id = (select auth.uid()) or public.is_farm_fresh_admin());
 
 drop policy if exists "Customers submit seller applications" on public.seller_applications;
-create policy "Customers submit seller applications" on public.seller_applications
-for insert to authenticated
-with check (
-    user_id = (select auth.uid())
-    and status = 'pending'
-    and exists (
-        select 1 from public.profiles
-        where id = (select auth.uid()) and role = 'customer'
-    )
-    and not exists (
-        select 1 from public.seller_applications
-        where user_id = (select auth.uid()) and status in ('pending', 'approved')
-    )
-    and exists (
-        select 1 from storage.objects
-        where bucket_id = 'farmer-certificates'
-          and name = certificate_path
-          and split_part(name, '/', 1) = (select auth.uid())::text
-    )
-);
-
 drop policy if exists "Admins review seller applications" on public.seller_applications;
 
 revoke all on public.seller_applications from anon, authenticated;
-grant select, insert on public.seller_applications to authenticated;
+grant select on public.seller_applications to authenticated;
+grant all on public.seller_applications to service_role;
 grant insert, update, delete on public.products to authenticated;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -127,13 +109,6 @@ set public = false,
     allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "Applicants upload own farmer certificate" on storage.objects;
-create policy "Applicants upload own farmer certificate" on storage.objects
-for insert to authenticated
-with check (
-    bucket_id = 'farmer-certificates'
-    and split_part(name, '/', 1) = (select auth.uid())::text
-    and lower(storage.extension(name)) in ('pdf', 'jpg', 'jpeg', 'png')
-);
 
 drop policy if exists "Applicants and owner read farmer certificates" on storage.objects;
 create policy "Applicants and owner read farmer certificates" on storage.objects

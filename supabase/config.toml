@@ -1,0 +1,2 @@
+[functions.seller-applications]
+verify_jwt = false
