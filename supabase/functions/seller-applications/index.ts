@@ -209,19 +209,34 @@ async function listApplications(supabase: ReturnType<typeof createClient>) {
     .select("*")
     .order("created_at", { ascending: false })
     .limit(100);
-  if (error) throw new HttpError(500, `Could not load farmer applications: ${error.message}`);
+  if (error) {
+    const message = error.message || "Seller applications are not ready yet.";
+    if (message.includes("does not exist") || message.includes("seller_preapplications")) {
+      throw new HttpError(503, "The owner review database is not ready yet. Run the seller setup SQL and deploy the Edge Function.");
+    }
+    throw new HttpError(500, `Could not load farmer applications: ${message}`);
+  }
   if (!data) throw new HttpError(500, "The seller application list was empty.");
 
   const applications = await Promise.all(data.map(async (application) => {
     let certificateUrl = null;
     if (application.status === "pending" || application.status === "processing") {
-      const { data: signedUrl, error: signedUrlError } = await supabase.storage
-        .from("farmer-certificates")
-        .createSignedUrl(application.certificate_path, 900);
-      if (signedUrlError) {
-        throw new HttpError(500, `Could not create a private certificate link: ${signedUrlError.message}`);
+      if (!application.certificate_path) {
+        return { ...application, certificate_url: null };
       }
-      certificateUrl = signedUrl.signedUrl;
+      try {
+        const { data: signedUrl, error: signedUrlError } = await supabase.storage
+          .from("farmer-certificates")
+          .createSignedUrl(application.certificate_path, 900);
+        if (signedUrlError) {
+          console.warn("Could not create a signed certificate URL; leaving it unavailable:", signedUrlError);
+          certificateUrl = null;
+        } else {
+          certificateUrl = signedUrl.signedUrl;
+        }
+      } catch (signedUrlFailure) {
+        console.warn("Could not create a signed certificate URL; leaving it unavailable:", signedUrlFailure);
+      }
     }
     return { ...application, certificate_url: certificateUrl };
   }));

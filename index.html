@@ -143,7 +143,10 @@
         </table>
     </div>
     <button onclick="saveSellerChanges()">💾 Save My Inventory</button>
-    <h3>📦 Orders for My Farm</h3>
+    <div class="seller-orders-header">
+        <h3>📦 Orders for My Farm</h3>
+        <button type="button" class="secondary sm" onclick="refreshSellerPageData()">↻ Refresh orders</button>
+    </div>
     <div id="seller-orders"></div>
     <button class="secondary" onclick="showBrowse()">🛒 Switch to Buyer View</button>
 </section>

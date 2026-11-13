@@ -1475,6 +1475,16 @@
             margin: 12px 0;
             background: rgba(255,255,255,.95);
         }
+        .seller-orders-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 12px 0 8px;
+        }
+        .seller-orders-header h3 {
+            margin: 0;
+        }
         .order-admin-head {
             display: flex;
             justify-content: space-between;

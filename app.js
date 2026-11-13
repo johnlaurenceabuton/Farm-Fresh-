@@ -182,6 +182,22 @@ function escapeHTML(value) {
         .replace(/'/g, "&#039;");
 }
 
+function getSupabaseFunctionErrorMessage(error) {
+    if (!error) return "Unknown error.";
+    if (typeof error.context?.body === "string") {
+        try {
+            const parsed = JSON.parse(error.context.body);
+            if (parsed?.error) return parsed.error;
+        } catch (parseError) {
+            console.warn("Could not parse Supabase function error body:", parseError);
+        }
+    }
+    if (typeof error.details === "string" && error.details.trim()) {
+        return error.details.trim();
+    }
+    return error.message || "Edge Function returned a non-2xx status code.";
+}
+
 /* =========================================================
    DATA MANAGEMENT
    ========================================================= */
@@ -270,9 +286,10 @@ async function loadAllData() {
             }
             sellerPreapplications = preapplicationData.applications;
         } catch (error) {
+            const message = getSupabaseFunctionErrorMessage(error);
             sellerPreapplications = [];
-            sellerPreapplicationsError = error.message;
-            console.error("Could not load pre-registration seller applications:", error);
+            sellerPreapplicationsError = message;
+            console.error("Could not load pre-registration seller applications:", message, error);
         }
     } else {
         sellerPreapplications = [];
@@ -1674,6 +1691,18 @@ function renderSellerOrders() {
     `).join("");
 }
 
+async function refreshSellerPageData() {
+    if (!currentUser || !isSeller || isAdmin) return;
+    try {
+        await loadAllData();
+        renderSellerOverview();
+        renderSellerProducts();
+        renderSellerOrders();
+    } catch (error) {
+        alert(`⚠️ Could not refresh seller data: ${error.message}`);
+    }
+}
+
 async function renderSellerApplications() {
     const container = $("seller-applications");
     if (!container || !isAdmin) return;
@@ -1782,9 +1811,10 @@ async function refreshSellerPreapplications() {
         sellerPreapplicationsError = "";
         renderSellerPreapplications();
     } catch (error) {
-        sellerPreapplicationsError = error.message;
+        const message = getSupabaseFunctionErrorMessage(error);
+        sellerPreapplicationsError = message;
         renderSellerPreapplications();
-        alert(`⚠️ Could not refresh farmer applications: ${error.message}`);
+        alert(`⚠️ Could not refresh farmer applications: ${message}`);
     }
 }
 

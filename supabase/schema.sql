@@ -6,7 +6,7 @@ create table if not exists public.profiles (
     full_name text not null default '',
     phone text not null default '',
     address text not null default '',
-    role text not null default 'customer' check (role in ('customer', 'admin')),
+    role text not null default 'customer' check (role in ('customer', 'seller', 'admin')),
     created_at timestamptz not null default now()
 );
 
@@ -510,6 +510,181 @@ begin
     end if;
 end;
 $$;
+
+alter table public.profiles
+    drop constraint if exists profiles_role_check;
+alter table public.profiles
+    add constraint profiles_role_check check (role in ('customer', 'seller', 'admin'));
+
+alter table public.products
+    add column if not exists seller_id uuid references public.profiles (id) on delete set null,
+    add column if not exists farm_name text not null default 'Farm Fresh';
+
+alter table public.orders
+    add column if not exists seller_id uuid references public.profiles (id) on delete set null;
+
+create table if not exists public.seller_applications (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references public.profiles (id) on delete cascade,
+    farm_name text not null check (length(trim(farm_name)) between 2 and 100),
+    farm_description text not null default '' check (length(farm_description) <= 1000),
+    certificate_path text not null unique,
+    status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+    review_notes text not null default '',
+    reviewed_by uuid references public.profiles (id),
+    reviewed_at timestamptz,
+    created_at timestamptz not null default now()
+);
+
+create table if not exists public.seller_preapplications (
+    id uuid primary key default gen_random_uuid(),
+    full_name text not null check (length(trim(full_name)) between 2 and 120),
+    email text not null check (
+        length(email) between 5 and 254
+        and email = lower(email)
+        and email ~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'
+    ),
+    phone text not null check (length(trim(phone)) between 5 and 40),
+    address text not null check (length(trim(address)) between 3 and 300),
+    farm_name text not null check (length(trim(farm_name)) between 2 and 100),
+    farm_description text not null default '' check (length(farm_description) <= 1000),
+    certificate_path text not null unique,
+    status text not null default 'pending'
+        check (status in ('pending', 'processing', 'approved', 'rejected')),
+    review_notes text not null default '' check (length(review_notes) <= 1000),
+    approved_user_id uuid references public.profiles (id) on delete set null,
+    reviewed_by uuid references public.profiles (id) on delete set null,
+    processing_started_at timestamptz,
+    reviewed_at timestamptz,
+    created_at timestamptz not null default now()
+);
+
+create unique index if not exists seller_preapplications_active_email_idx
+    on public.seller_preapplications (email)
+    where status in ('pending', 'processing');
+create index if not exists seller_preapplications_created_idx
+    on public.seller_preapplications (created_at desc);
+
+create or replace function public.is_farm_fresh_seller()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+    select exists (
+        select 1 from public.profiles
+        where id = (select auth.uid()) and role = 'seller'
+    );
+$$;
+
+create or replace function public.review_farm_fresh_seller_application(
+    p_application_id uuid,
+    p_decision text,
+    p_review_notes text default ''
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_application public.seller_applications%rowtype;
+begin
+    if not public.is_farm_fresh_admin() then
+        raise exception 'Owner administrator access required';
+    end if;
+    if p_decision not in ('approved', 'rejected') then
+        raise exception 'Choose approved or rejected';
+    end if;
+    if length(coalesce(p_review_notes, '')) > 1000 then
+        raise exception 'Review notes are too long';
+    end if;
+
+    select * into v_application
+    from public.seller_applications
+    where id = p_application_id
+    for update;
+    if not found then raise exception 'Seller application not found'; end if;
+    if v_application.status <> 'pending' then
+        raise exception 'This seller application has already been reviewed';
+    end if;
+
+    update public.seller_applications
+    set status = p_decision,
+        review_notes = coalesce(p_review_notes, ''),
+        reviewed_by = auth.uid(),
+        reviewed_at = now()
+    where id = p_application_id;
+
+    if p_decision = 'approved' then
+        update public.profiles
+        set role = 'seller'
+        where id = v_application.user_id
+          and role = 'customer';
+        if not found then
+            raise exception 'Applicant is no longer an eligible customer';
+        end if;
+    end if;
+end;
+$$;
+
+revoke all on public.seller_applications, public.seller_preapplications from public, anon, authenticated;
+grant select on public.seller_applications to authenticated;
+grant all on public.seller_applications, public.seller_preapplications to service_role;
+
+create table if not exists public.seller_preapplication_rate_limits (
+    ip_hash text primary key check (ip_hash ~ '^[0-9a-f]{64}$'),
+    window_started_at timestamptz not null default now(),
+    request_count integer not null default 1 check (request_count between 1 and 6)
+);
+
+create index if not exists seller_preapplication_rate_limits_window_idx
+    on public.seller_preapplication_rate_limits (window_started_at);
+
+alter table public.seller_preapplication_rate_limits enable row level security;
+revoke all on public.seller_preapplication_rate_limits from public, anon, authenticated;
+grant all on public.seller_preapplication_rate_limits to service_role;
+
+create or replace function public.consume_seller_preapplication_attempt(p_ip_hash text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_now timestamptz := now();
+    v_request_count integer;
+begin
+    if p_ip_hash is null or p_ip_hash !~ '^[0-9a-f]{64}$' then
+        raise exception 'Invalid rate-limit key';
+    end if;
+
+    insert into public.seller_preapplication_rate_limits as rate_limit (
+        ip_hash, window_started_at, request_count
+    ) values (
+        p_ip_hash, v_now, 1
+    )
+    on conflict (ip_hash) do update
+    set window_started_at = case
+            when rate_limit.window_started_at <= v_now - interval '1 hour' then v_now
+            else rate_limit.window_started_at
+        end,
+        request_count = case
+            when rate_limit.window_started_at <= v_now - interval '1 hour' then 1
+            else least(rate_limit.request_count + 1, 6)
+        end
+    returning request_count into v_request_count;
+
+    delete from public.seller_preapplication_rate_limits
+    where window_started_at < v_now - interval '24 hours';
+
+    return v_request_count <= 5;
+end;
+$$;
+
+revoke all on function public.consume_seller_preapplication_attempt(text) from public, anon, authenticated;
+grant execute on function public.consume_seller_preapplication_attempt(text) to service_role;
 
 -- After the owner has signed up, promote that exact email from the SQL editor:
 -- update public.profiles
