@@ -49,6 +49,17 @@ function escapeHtml(value: unknown) {
     .replace(/'/g, "&#039;");
 }
 
+function getAdminEmails(rows: unknown): string[] {
+  if (!Array.isArray(rows)) return [];
+
+  const emails: string[] = [];
+  for (const row of rows) {
+    if (typeof row !== "object" || row === null || !("email" in row)) continue;
+    if (typeof row.email === "string" && row.email.trim()) emails.push(row.email.trim());
+  }
+  return emails;
+}
+
 async function notifyAdminsOfApplication(
   supabase: ReturnType<typeof createClient>,
   application: { id: string; fullName: string; email: string; farmName: string },
@@ -69,11 +80,7 @@ async function notifyAdminsOfApplication(
     return false;
   }
 
-  const recipientEmails = [...new Set(
-    (admins || [])
-      .map((admin) => typeof admin.email === "string" ? admin.email.trim() : "")
-      .filter((email) => email.length > 0),
-  )];
+  const recipientEmails = [...new Set(getAdminEmails(admins))];
   if (!recipientEmails.length) {
     console.error("Seller application was saved, but no owner email recipients were found.");
     return false;
