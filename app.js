@@ -1720,9 +1720,6 @@ function renderSellerOrders() {
             </div>
             <p><strong>Total:</strong> ${order.totalQuantity}kg · ${formatCurrency(order.totalAmount)}</p>
             <p><strong>Payment:</strong> ${escapeHTML(getPaymentMethodLabel(order.paymentMethod))} — ${escapeHTML(order.paymentStatus)}</p>
-            ${order.status === "Delivered"
-                ? `<button type="button" class="secondary sm" onclick="sendDeliveryReceiptEmails('${escapeHTML(order.id)}')">Retry receipt emails</button>`
-                : ""}
         </div>
     `).join("");
 }
@@ -2295,53 +2292,8 @@ async function updateOrderStatus(orderId, status) {
     if (error) return alert(`⚠️ Could not update order status: ${error.message}`);
     await refreshShopData();
     if (status === "Delivered") {
-        await sendDeliveryReceiptEmails(orderId);
+        alert("✅ Order marked Delivered. In-app notifications were sent to the customer, seller, and owner.");
     }
-}
-
-async function sendDeliveryReceiptEmails(orderId) {
-    if (!currentUser || !isSeller || isAdmin
-        || !orders.some(order => order.id === orderId && order.sellerId === currentUser.id)) {
-        return alert("❌ Only the assigned seller can send this delivery receipt notification.");
-    }
-
-    const { data: emailResult, error: emailError } = await supabaseClient.functions.invoke(
-        "delivery-notifications",
-        { body: { orderId } }
-    );
-    if (emailError) {
-        const message = getSupabaseFunctionErrorMessage(emailError);
-        console.error("Delivery receipt exists, but notification emails failed:", message, emailError);
-        alert(`⚠️ In-app notifications and the receipt are available to the customer, seller, and owner, but email could not be sent: ${message}`);
-        return;
-    }
-    alert(emailResult.alreadySent
-        ? "✅ Receipt notification emails were already sent to the customer, seller, and owner."
-        : `✅ Receipt notification emails were sent to ${emailResult.sent} account(s).`);
-}
-
-async function sendCustomerCancellationEmails(orderId) {
-    if (!currentUser || isAdmin
-        || !orders.some(order => order.id === orderId
-            && order.userId === currentUser.id
-            && order.status === "Cancelled"
-            && order.cancelledBy === "customer")) {
-        return alert("❌ Only the customer who placed this order can send its cancellation notification.");
-    }
-
-    const { data: emailResult, error: emailError } = await supabaseClient.functions.invoke(
-        "delivery-notifications",
-        { body: { orderId, eventType: "customer_cancellation" } }
-    );
-    if (emailError) {
-        const message = getSupabaseFunctionErrorMessage(emailError);
-        console.error("Order was cancelled, but cancellation emails failed:", message, emailError);
-        alert(`✅ Order cancelled and stock restored. In-app notifications were created, but email could not be sent: ${message}`);
-        return;
-    }
-    alert(emailResult.alreadySent
-        ? "✅ Order cancelled. Cancellation emails were already sent to the customer, seller, and owner."
-        : `✅ Order cancelled. Cancellation emails were sent to ${emailResult.sent} account(s).`);
 }
 
 function renderDeliveryNotifications() {
@@ -2554,10 +2506,6 @@ function renderCustomerOrders() {
                             : CUSTOMER_CANCELLATION_REASONS.find(reason => reason.value === order.cancellationReason)?.label || order.cancellationReason
                     )}</p>`
                     : ""}
-                ${order.status === "Cancelled" && order.cancelledBy === "customer"
-                    ? `<button type="button" class="secondary sm" onclick="sendCustomerCancellationEmails('${escapeHTML(order.id)}')">Retry cancellation emails</button>`
-                    : ""}
-
                 <div class="order-admin-items">
                     ${order.items.map(item => `
                         <div>${escapeHTML(item.cropName)} — ${item.quantity}kg × ${formatCurrency(item.pricePerKg)} = ${formatCurrency(item.subtotal)}</div>
@@ -2688,10 +2636,9 @@ async function submitCustomerOrderCancellation(event) {
         return alert(`⚠️ Could not cancel this order: ${error.message}`);
     }
 
-    const orderId = pendingCancellationOrderId;
     closeCustomerCancellationDialog();
     await refreshShopData();
-    await sendCustomerCancellationEmails(orderId);
+    alert("✅ Order cancelled, stock restored, and in-app notifications were sent to the customer, seller, and owner.");
 }
 
 async function markItemReceived(orderId) {
