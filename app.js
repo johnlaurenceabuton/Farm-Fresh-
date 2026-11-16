@@ -1415,11 +1415,12 @@ async function confirmOrder() {
         <p><strong>Order Type:</strong> ${escapeHTML(
             CONFIG.orderTypes[orderType].label
         )}</p>
+        <p>This checkout includes ${placedOrders.length} separate farm receipt${placedOrders.length === 1 ? "" : "s"}.</p>
         ${orderReceipts}
 
         <hr>
 
-        <p><strong>Total:</strong>
+        <p><strong>Combined total:</strong>
             ${totalQuantity} kg —
             ${formatCurrency(totalAmount)}
         </p>
@@ -2389,17 +2390,17 @@ function renderDeliveryNotifications() {
     count.setAttribute(
         "aria-label",
         deliveryNotificationsUnavailable
-            ? "Delivery notifications are not configured"
+            ? "Notifications are not configured"
             : `${unreadCount} unread notifications`
     );
 
     if (deliveryNotificationsUnavailable) {
-        list.innerHTML = '<p class="empty-message">Delivery notifications are not configured yet. Ask the owner to run the delivery notification setup in Supabase.</p>';
+        list.innerHTML = '<p class="empty-message">Notifications are not configured yet. Ask the owner to run the notification setup in Supabase.</p>';
         return;
     }
 
     if (!deliveryNotifications.length) {
-        list.innerHTML = '<p class="empty-message">No delivery notifications yet.</p>';
+        list.innerHTML = '<p class="empty-message">No notifications yet.</p>';
         return;
     }
 
