@@ -363,7 +363,7 @@ begin
     end if;
     if (
         (v_order.status = 'Pending' and p_status not in ('Preparing', 'Cancelled'))
-        or (v_order.status = 'Preparing' and p_status not in ('Ready', 'Cancelled'))
+        or (v_order.status = 'Preparing' and p_status not in ('Ready', 'Delivered', 'Cancelled'))
         or (v_order.status = 'Ready' and p_status not in ('Delivered', 'Cancelled'))
         or (v_order.status in ('Delivered', 'Completed') and p_status <> v_order.status)
     ) then

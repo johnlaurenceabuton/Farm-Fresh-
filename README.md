@@ -8,6 +8,8 @@ Farm Fresh is a browser-based storefront backed by Supabase.
 - `styles.css` — storefront styling.
 - `app.js` — browser behavior, authentication, and Supabase client integration.
 - `supabase/schema.sql` — database tables, policies, and order/inventory functions.
+- `supabase/delivery_notifications.sql` — private in-app delivery receipt notifications and Realtime setup.
+- `supabase/customer_order_cancellation.sql` — customer cancellation rules, inventory restoration, and cancellation notices.
 - `supabase/README.md` — Supabase project and owner account setup.
 
 Keep `index.html`, `styles.css`, and `app.js` together when deploying; the page loads the stylesheet and application script by relative path. The Supabase JavaScript client is loaded from jsDelivr.

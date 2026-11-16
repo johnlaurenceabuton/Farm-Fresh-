@@ -45,6 +45,14 @@ const PAYMENT_METHODS = {
     cashier: { label: "Pay in person / Cashier", online: false }
 };
 
+const CUSTOMER_CANCELLATION_REASONS = [
+    { value: "ordered_by_mistake", label: "I ordered by mistake" },
+    { value: "no_longer_needed", label: "I no longer need these items" },
+    { value: "timing_issue", label: "The delivery or pickup timing does not work for me" },
+    { value: "payment_issue", label: "I have a payment issue" },
+    { value: "other", label: "Other" }
+];
+
 /* =========================================================
    DEFAULT CROPS
    Add a new crop here and the rest of the app handles it.
@@ -75,6 +83,10 @@ let sellerFarms = [];
 let sellerDirectoryWarning = false;
 let reservationDates = [];
 let orders = [];
+let deliveryNotifications = [];
+let deliveryNotificationsUnavailable = false;
+let pendingCancellationOrderId = null;
+let cancellationDialogTrigger = null;
 let sellerApplication = null;
 let sellerApplications = [];
 let sellerPreapplications = [];
@@ -205,17 +217,30 @@ async function loadAllData() {
     const sellerApplicationsQuery = isAdmin
         ? supabaseClient.from("seller_applications").select("*").order("created_at", { ascending: false })
         : supabaseClient.from("seller_applications").select("*").eq("user_id", currentUser.id).order("created_at", { ascending: false });
-    const [productsResult, datesResult, ordersResult, paymentResult, sellerApplicationsResult, sellerFarmsResult] = await Promise.all([
+    const [productsResult, datesResult, ordersResult, paymentResult, sellerApplicationsResult, sellerFarmsResult, notificationsResult] = await Promise.all([
         supabaseClient.from("products").select("*").order("name"),
         supabaseClient.from("reservation_dates").select("available_on").order("available_on"),
         supabaseClient.from("orders").select("*").order("created_at", { ascending: false }),
         supabaseClient.from("payment_qrs").select("method,image_data"),
         sellerApplicationsQuery,
-        supabaseClient.rpc("list_public_seller_farms")
+        supabaseClient.rpc("list_public_seller_farms"),
+        supabaseClient.from("delivery_notifications")
+            .select("id,order_id,receipt_id,message,created_at,read_at")
+            .order("created_at", { ascending: false })
     ]);
 
     for (const result of [productsResult, datesResult, ordersResult, paymentResult, sellerApplicationsResult]) {
         if (result.error) throw result.error;
+    }
+
+    const notificationsTableMissing = notificationsResult.error
+        && ["PGRST205", "42P01"].includes(notificationsResult.error.code)
+        && notificationsResult.error.message.includes("delivery_notifications");
+    if (notificationsResult.error && !notificationsTableMissing) throw notificationsResult.error;
+    if (notificationsTableMissing) {
+        console.warn(
+            "Delivery notifications are unavailable because public.delivery_notifications is missing. Run supabase/delivery_notifications.sql in the Supabase SQL Editor."
+        );
     }
 
     if (sellerFarmsResult.error) {
@@ -267,10 +292,15 @@ async function loadAllData() {
         deliveryReceipt: order.delivery_receipt,
         customerReceivedAt: order.customer_received_at,
         deliveredAt: order.delivered_at,
+        cancelledBy: order.cancelled_by,
+        cancellationReason: order.cancellation_reason,
+        cancellationReasonOther: order.cancellation_reason_other,
         createdAt: order.created_at,
         userId: order.user_id,
         sellerId: order.seller_id
     }));
+    deliveryNotificationsUnavailable = Boolean(notificationsTableMissing);
+    deliveryNotifications = notificationsTableMissing ? [] : notificationsResult.data;
     sellerApplications = sellerApplicationsResult.data;
     sellerApplication = sellerApplications.find(item => item.user_id === currentUser.id) || null;
     if (isAdmin) {
@@ -298,6 +328,7 @@ async function loadAllData() {
     paymentQrs = Object.fromEntries(
         paymentResult.data.map(row => [row.method, row.image_data])
     );
+    renderDeliveryNotifications();
 }
 
 function getSellerFarmsFromProducts(products) {
@@ -658,6 +689,7 @@ function subscribeToRealtimeUpdates() {
         .channel(`farm-fresh-${currentUser.id}`)
         .on("postgres_changes", { event: "*", schema: "public", table: "products" }, refreshShopData)
         .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, refreshShopData)
+        .on("postgres_changes", { event: "*", schema: "public", table: "delivery_notifications" }, refreshShopData)
         .on("postgres_changes", { event: "*", schema: "public", table: "reservation_dates" }, refreshShopData)
         .on("postgres_changes", { event: "*", schema: "public", table: "payment_qrs" }, refreshShopData)
         .on("postgres_changes", { event: "*", schema: "public", table: "seller_applications" }, () => refreshShopData(true))
@@ -729,6 +761,7 @@ async function logout() {
     sellerDirectoryWarning = false;
     sellerPreapplications = [];
     sellerPreapplicationsError = "";
+    deliveryNotifications = [];
     selectedCrops = [];
 
     hide("nav-area");
@@ -1661,7 +1694,7 @@ function renderSellerOrders() {
     }
     const sellerStatusOptions = {
         Pending: ["Pending", "Preparing", "Cancelled"],
-        Preparing: ["Preparing", "Ready", "Cancelled"],
+        Preparing: ["Preparing", "Ready", "Delivered", "Cancelled"],
         Ready: ["Ready", "Delivered", "Cancelled"],
         Delivered: ["Delivered"],
         Cancelled: ["Cancelled"],
@@ -1687,6 +1720,9 @@ function renderSellerOrders() {
             </div>
             <p><strong>Total:</strong> ${order.totalQuantity}kg · ${formatCurrency(order.totalAmount)}</p>
             <p><strong>Payment:</strong> ${escapeHTML(getPaymentMethodLabel(order.paymentMethod))} — ${escapeHTML(order.paymentStatus)}</p>
+            ${order.status === "Delivered"
+                ? `<button type="button" class="secondary sm" onclick="sendDeliveryReceiptEmails('${escapeHTML(order.id)}')">Retry receipt emails</button>`
+                : ""}
         </div>
     `).join("");
 }
@@ -2244,7 +2280,8 @@ async function updateOrderStatus(orderId, status) {
         return alert("❌ Only the assigned seller can update this order's delivery status.");
     }
 
-    if (!orders.some(item => item.id === orderId)) return;
+    const currentOrder = orders.find(item => item.id === orderId);
+    if (!currentOrder || (status === "Delivered" && currentOrder.status === "Delivered")) return;
     let error;
     try {
         ({ error } = await supabaseClient.rpc("set_farm_fresh_order_status", {
@@ -2258,8 +2295,108 @@ async function updateOrderStatus(orderId, status) {
     if (error) return alert(`⚠️ Could not update order status: ${error.message}`);
     await refreshShopData();
     if (status === "Delivered") {
-        alert("✅ Order marked as DELIVERED. The delivery receipt is now available to the customer and owner.");
+        await sendDeliveryReceiptEmails(orderId);
     }
+}
+
+async function sendDeliveryReceiptEmails(orderId) {
+    if (!currentUser || !isSeller || isAdmin
+        || !orders.some(order => order.id === orderId && order.sellerId === currentUser.id)) {
+        return alert("❌ Only the assigned seller can send this delivery receipt notification.");
+    }
+
+    const { data: emailResult, error: emailError } = await supabaseClient.functions.invoke(
+        "delivery-notifications",
+        { body: { orderId } }
+    );
+    if (emailError) {
+        const message = getSupabaseFunctionErrorMessage(emailError);
+        console.error("Delivery receipt exists, but notification emails failed:", message, emailError);
+        alert(`⚠️ In-app notifications and the receipt are available to the customer, seller, and owner, but email could not be sent: ${message}`);
+        return;
+    }
+    alert(emailResult.alreadySent
+        ? "✅ Receipt notification emails were already sent to the customer, seller, and owner."
+        : `✅ Receipt notification emails were sent to ${emailResult.sent} account(s).`);
+}
+
+async function sendCustomerCancellationEmails(orderId) {
+    if (!currentUser || isAdmin
+        || !orders.some(order => order.id === orderId
+            && order.userId === currentUser.id
+            && order.status === "Cancelled"
+            && order.cancelledBy === "customer")) {
+        return alert("❌ Only the customer who placed this order can send its cancellation notification.");
+    }
+
+    const { data: emailResult, error: emailError } = await supabaseClient.functions.invoke(
+        "delivery-notifications",
+        { body: { orderId, eventType: "customer_cancellation" } }
+    );
+    if (emailError) {
+        const message = getSupabaseFunctionErrorMessage(emailError);
+        console.error("Order was cancelled, but cancellation emails failed:", message, emailError);
+        alert(`✅ Order cancelled and stock restored. In-app notifications were created, but email could not be sent: ${message}`);
+        return;
+    }
+    alert(emailResult.alreadySent
+        ? "✅ Order cancelled. Cancellation emails were already sent to the customer, seller, and owner."
+        : `✅ Order cancelled. Cancellation emails were sent to ${emailResult.sent} account(s).`);
+}
+
+function renderDeliveryNotifications() {
+    const list = $("delivery-notifications");
+    const count = $("notification-count");
+    if (!list || !count) return;
+
+    const unreadCount = deliveryNotifications.filter(notification => !notification.read_at).length;
+    count.textContent = deliveryNotificationsUnavailable ? "Setup" : String(unreadCount);
+    count.setAttribute(
+        "aria-label",
+        deliveryNotificationsUnavailable
+            ? "Delivery notifications are not configured"
+            : `${unreadCount} unread notifications`
+    );
+
+    if (deliveryNotificationsUnavailable) {
+        list.innerHTML = '<p class="empty-message">Delivery notifications are not configured yet. Ask the owner to run the delivery notification setup in Supabase.</p>';
+        return;
+    }
+
+    if (!deliveryNotifications.length) {
+        list.innerHTML = '<p class="empty-message">No delivery notifications yet.</p>';
+        return;
+    }
+
+    list.innerHTML = deliveryNotifications.map(notification => `
+        <article class="delivery-notification${notification.read_at ? " is-read" : ""}">
+            <p>${escapeHTML(notification.message)}</p>
+            <time datetime="${escapeHTML(notification.created_at)}">${escapeHTML(new Date(notification.created_at).toLocaleString("en-PH"))}</time>
+            ${notification.read_at
+                ? '<span class="notification-read-label">Read</span>'
+                : `<button type="button" class="sm secondary" onclick="markDeliveryNotificationRead('${escapeHTML(notification.id)}')">Mark as read</button>`}
+        </article>
+    `).join("");
+}
+
+async function markDeliveryNotificationRead(notificationId) {
+    if (!currentUser) return;
+
+    const { error } = await supabaseClient
+        .from("delivery_notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("id", notificationId)
+        .eq("recipient_id", currentUser.id)
+        .select("id")
+        .single();
+    if (error) return alert(`⚠️ Could not mark notification as read: ${error.message}`);
+
+    deliveryNotifications = deliveryNotifications.map(notification =>
+        notification.id === notificationId
+            ? { ...notification, read_at: new Date().toISOString() }
+            : notification
+    );
+    renderDeliveryNotifications();
 }
 
 /* =========================================================
@@ -2410,6 +2547,16 @@ function renderCustomerOrders() {
                 <p><strong>Payment Status:</strong> ${escapeHTML(order.paymentStatus || "Not recorded")}</p>
                 ${order.paymentReference ? `<p><strong>Payment Reference:</strong> ${escapeHTML(order.paymentReference)}</p>` : ""}
                 <p><strong>Total:</strong> ${order.totalQuantity}kg · ${formatCurrency(order.totalAmount)}</p>
+                ${order.cancellationReason
+                    ? `<p><strong>Cancellation reason:</strong> ${escapeHTML(
+                        order.cancellationReason === "other"
+                            ? `Other: ${order.cancellationReasonOther || ""}`
+                            : CUSTOMER_CANCELLATION_REASONS.find(reason => reason.value === order.cancellationReason)?.label || order.cancellationReason
+                    )}</p>`
+                    : ""}
+                ${order.status === "Cancelled" && order.cancelledBy === "customer"
+                    ? `<button type="button" class="secondary sm" onclick="sendCustomerCancellationEmails('${escapeHTML(order.id)}')">Retry cancellation emails</button>`
+                    : ""}
 
                 <div class="order-admin-items">
                     ${order.items.map(item => `
@@ -2447,9 +2594,104 @@ function renderCustomerOrders() {
                             ? `<span class="received-badge">✅ Item received and delivery receipt removed.</span>`
                             : ""
                 }
+                ${["Pending", "Preparing", "Ready"].includes(order.status)
+                    ? `<button type="button" class="danger sm" onclick="openCustomerOrderCancellation('${escapeHTML(order.id)}', this)">Cancel order</button>`
+                    : ""}
             </div>
         `;
     }).join("");
+}
+
+function openCustomerOrderCancellation(orderId, trigger) {
+    if (!currentUser || isAdmin) return;
+
+    const order = orders.find(item => item.id === orderId && item.userId === currentUser.id);
+    if (!order || !["Pending", "Preparing", "Ready"].includes(order.status)) {
+        return alert("⚠️ This order can no longer be cancelled.");
+    }
+    if (!confirm("Are you sure to cancel this order?")) return;
+
+    pendingCancellationOrderId = orderId;
+    cancellationDialogTrigger = trigger;
+    $("cancel-reason-options").innerHTML = CUSTOMER_CANCELLATION_REASONS.map((reason, index) => `
+        <label class="cancel-reason-option" for="cancel-reason-${index}">
+            <input id="cancel-reason-${index}" type="radio" name="cancel-reason" value="${reason.value}" onchange="toggleCancellationOtherReason()">
+            <span>${index + 1}. ${escapeHTML(reason.label)}</span>
+        </label>
+    `).join("");
+    $("customer-cancel-form").reset();
+    $("cancel-other-reason-wrap").classList.add("hidden");
+    $("cancel-other-reason").required = false;
+    $("cancel-dialog-note").textContent = order.paymentStatus === "Paid"
+        ? "This order is marked Paid. Cancellation does not issue a refund; the owner will need to review the payment."
+        : "Please choose a reason before confirming cancellation.";
+    show("customer-cancel-dialog");
+    $("cancel-reason-0").focus();
+}
+
+function toggleCancellationOtherReason() {
+    const isOther = document.querySelector('input[name="cancel-reason"]:checked')?.value === "other";
+    $("cancel-other-reason-wrap").classList.toggle("hidden", !isOther);
+    $("cancel-other-reason").required = isOther;
+    if (!isOther) $("cancel-other-reason").value = "";
+    else $("cancel-other-reason").focus();
+}
+
+function closeCustomerCancellationDialog() {
+    hide("customer-cancel-dialog");
+    $("customer-cancel-form").reset();
+    $("cancel-other-reason-wrap").classList.add("hidden");
+    $("cancel-other-reason").required = false;
+    pendingCancellationOrderId = null;
+    if (cancellationDialogTrigger?.isConnected) cancellationDialogTrigger.focus();
+    cancellationDialogTrigger = null;
+}
+
+async function submitCustomerOrderCancellation(event) {
+    event.preventDefault();
+    if (!currentUser || isAdmin || !pendingCancellationOrderId) {
+        return alert("⚠️ Select an order to cancel first.");
+    }
+
+    const order = orders.find(item =>
+        item.id === pendingCancellationOrderId && item.userId === currentUser.id
+    );
+    if (!order || !["Pending", "Preparing", "Ready"].includes(order.status)) {
+        closeCustomerCancellationDialog();
+        return alert("⚠️ This order can no longer be cancelled.");
+    }
+
+    const reason = document.querySelector('input[name="cancel-reason"]:checked')?.value;
+    if (!CUSTOMER_CANCELLATION_REASONS.some(option => option.value === reason)) {
+        return alert("Choose a reason for cancelling your order.");
+    }
+    const otherReason = $("cancel-other-reason").value.trim();
+    if (reason === "other" && (otherReason.length < 5 || otherReason.length > 500)) {
+        return alert("Enter an other reason between 5 and 500 characters.");
+    }
+
+    const submitButton = $("customer-cancel-form").querySelector('[type="submit"]');
+    submitButton.disabled = true;
+    let error;
+    try {
+        ({ error } = await supabaseClient.rpc("cancel_farm_fresh_customer_order", {
+            p_order_id: pendingCancellationOrderId,
+            p_reason: reason,
+            p_other_reason: reason === "other" ? otherReason : null
+        }));
+    } catch (requestError) {
+        submitButton.disabled = false;
+        return alert(`⚠️ Could not cancel this order: ${requestError.message}`);
+    }
+    if (error) {
+        submitButton.disabled = false;
+        return alert(`⚠️ Could not cancel this order: ${error.message}`);
+    }
+
+    const orderId = pendingCancellationOrderId;
+    closeCustomerCancellationDialog();
+    await refreshShopData();
+    await sendCustomerCancellationEmails(orderId);
 }
 
 async function markItemReceived(orderId) {
@@ -2489,138 +2731,8 @@ async function markItemReceived(orderId) {
 /* =========================================================
    UI INITIALIZATION
    ========================================================= */
-let particleFrame = 0;
-let particleNodes = [];
-let particleContext = null;
-let particleWidth = 0;
-let particleHeight = 0;
-const particlePointer = { x: -1000, y: -1000 };
-const reducedMotionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-function resizeParticleField() {
-    if (!document.body.classList.contains("auth-scene")) return;
-
-    const canvas = $("particle-field");
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    particleWidth = window.innerWidth;
-    particleHeight = window.innerHeight;
-    canvas.width = Math.floor(particleWidth * pixelRatio);
-    canvas.height = Math.floor(particleHeight * pixelRatio);
-    particleContext = canvas.getContext("2d");
-    particleContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-
-    const count = Math.max(28, Math.min(76, Math.floor(particleWidth * particleHeight / 18000)));
-    particleNodes = Array.from({ length: count }, () => ({
-        x: Math.random() * particleWidth,
-        y: Math.random() * particleHeight,
-        vx: (Math.random() - .5) * .34,
-        vy: (Math.random() - .5) * .34,
-        radius: 1 + Math.random() * 1.8,
-        hue: Math.random() > .5 ? 146 : 78
-    }));
-}
-
-function drawParticleField() {
-    if (!document.body.classList.contains("auth-scene") || !particleContext) {
-        particleFrame = 0;
-        return;
-    }
-
-    const context = particleContext;
-    context.clearRect(0, 0, particleWidth, particleHeight);
-    context.globalCompositeOperation = "lighter";
-
-    particleNodes.forEach((node, index) => {
-        node.x += node.vx;
-        node.y += node.vy;
-
-        if (node.x < -8) node.x = particleWidth + 8;
-        if (node.x > particleWidth + 8) node.x = -8;
-        if (node.y < -8) node.y = particleHeight + 8;
-        if (node.y > particleHeight + 8) node.y = -8;
-
-        for (let nextIndex = index + 1; nextIndex < particleNodes.length; nextIndex += 1) {
-            const next = particleNodes[nextIndex];
-            const distance = Math.hypot(node.x - next.x, node.y - next.y);
-
-            if (distance < 128) {
-                context.beginPath();
-                context.strokeStyle = `rgba(112, 255, 195, ${(1 - distance / 128) * .2})`;
-                context.lineWidth = .7;
-                context.moveTo(node.x, node.y);
-                context.lineTo(next.x, next.y);
-                context.stroke();
-            }
-        }
-
-        const pointerDistance = Math.hypot(node.x - particlePointer.x, node.y - particlePointer.y);
-        if (pointerDistance < 150) {
-            context.beginPath();
-            context.strokeStyle = `rgba(204, 255, 105, ${(1 - pointerDistance / 150) * .34})`;
-            context.lineWidth = .8;
-            context.moveTo(node.x, node.y);
-            context.lineTo(particlePointer.x, particlePointer.y);
-            context.stroke();
-        }
-
-        context.beginPath();
-        context.fillStyle = `hsla(${node.hue}, 100%, 72%, .8)`;
-        context.shadowBlur = 15;
-        context.shadowColor = `hsla(${node.hue}, 100%, 66%, .9)`;
-        context.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-        context.fill();
-    });
-
-    context.shadowBlur = 0;
-    context.globalCompositeOperation = "source-over";
-    particleFrame = window.requestAnimationFrame(drawParticleField);
-}
-
 function setAuthAtmosphere(enabled) {
     document.body.classList.toggle("auth-scene", enabled);
-
-    if (!enabled) {
-        if (particleFrame) window.cancelAnimationFrame(particleFrame);
-        particleFrame = 0;
-        particleContext?.clearRect(0, 0, particleWidth, particleHeight);
-        $("auth-section").style.setProperty("--tilt-x", "0deg");
-        $("auth-section").style.setProperty("--tilt-y", "0deg");
-        return;
-    }
-
-    if (reducedMotionPreference.matches) return;
-    resizeParticleField();
-    if (!particleFrame) particleFrame = window.requestAnimationFrame(drawParticleField);
-}
-
-function initializeAuthInteractions() {
-    const authCard = $("auth-section");
-
-    authCard.addEventListener("pointermove", event => {
-        if (reducedMotionPreference.matches || event.pointerType === "touch") return;
-
-        const bounds = authCard.getBoundingClientRect();
-        const horizontal = (event.clientX - bounds.left) / bounds.width;
-        const vertical = (event.clientY - bounds.top) / bounds.height;
-        authCard.style.setProperty("--pointer-x", `${horizontal * 100}%`);
-        authCard.style.setProperty("--pointer-y", `${vertical * 100}%`);
-        authCard.style.setProperty("--tilt-x", `${(0.5 - vertical) * 5}deg`);
-        authCard.style.setProperty("--tilt-y", `${(horizontal - 0.5) * 6}deg`);
-    });
-
-    authCard.addEventListener("pointerleave", () => {
-        authCard.style.setProperty("--pointer-x", "50%");
-        authCard.style.setProperty("--pointer-y", "0%");
-        authCard.style.setProperty("--tilt-x", "0deg");
-        authCard.style.setProperty("--tilt-y", "0deg");
-    });
-
-    window.addEventListener("pointermove", event => {
-        particlePointer.x = event.clientX;
-        particlePointer.y = event.clientY;
-    }, { passive: true });
-
-    window.addEventListener("resize", resizeParticleField, { passive: true });
 }
 
 async function initializeApp() {
@@ -2632,7 +2744,6 @@ async function initializeApp() {
 
     renderOrderOptions();
     renderPaymentOptions();
-    initializeAuthInteractions();
     setAuthAtmosphere(true);
 
     $("prep-time-label").textContent =

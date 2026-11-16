@@ -1,2 +1,5 @@
 [functions.seller-applications]
 verify_jwt = false
+
+[functions.delivery-notifications]
+verify_jwt = false

@@ -9,7 +9,6 @@
 </head>
 
 <body>
-<canvas id="particle-field" aria-hidden="true"></canvas>
 <header class="brand-header">
     <div class="brand-mark" aria-hidden="true">
         <span class="leaf leaf-one">⌁</span>
@@ -26,6 +25,10 @@
 
 <div id="nav-area" class="nav-links hidden">
     <span id="user-greeting"></span>
+    <details class="notification-center">
+        <summary>🔔 Notifications <span id="notification-count" aria-label="0 unread notifications">0</span></summary>
+        <div id="delivery-notifications" aria-live="polite"></div>
+    </details>
     <button id="admin-view-toggle" class="sm secondary hidden" onclick="toggleAdminCustomerView()">Admin View</button>
     <button id="seller-view-toggle" class="sm secondary hidden" onclick="toggleSellerBuyerView()">Seller View</button>
     <button class="sm secondary" onclick="showPasswordSection()">Set / Change Password</button>
@@ -202,7 +205,7 @@
 
 <section id="customer-orders-section" class="card hidden">
     <h2>📦 My Orders & Deliveries</h2>
-    <p class="note">Delivered orders show the receipt prepared by the seller. Tap <strong>Item Received</strong> to acknowledge receipt; the delivery receipt will then be removed.</p>
+    <p class="note">Delivered orders show the receipt prepared by the seller. Tap <strong>Item Received</strong> to acknowledge receipt; the delivery receipt will then be removed. Pending, preparing, or ready orders can be cancelled with a reason; the seller and owner will be notified.</p>
     <div id="customer-orders"></div>
     <button onclick="showBrowse()">← Back to Shop</button>
 </section>
@@ -331,6 +334,24 @@
 
     <button class="secondary" onclick="showCustomerView()">🛒 Switch to Customer View</button>
 </section>
+
+<div id="customer-cancel-dialog" class="hidden" role="dialog" aria-modal="true" aria-labelledby="cancel-dialog-title">
+    <div class="cancel-dialog-card">
+        <h2 id="cancel-dialog-title">Why are you cancelling this order?</h2>
+        <p class="note" id="cancel-dialog-note">Please choose a reason before confirming cancellation.</p>
+        <form id="customer-cancel-form" onsubmit="submitCustomerOrderCancellation(event)">
+            <div id="cancel-reason-options"></div>
+            <div id="cancel-other-reason-wrap" class="hidden">
+                <label for="cancel-other-reason">Tell us your reason</label>
+                <textarea id="cancel-other-reason" maxlength="500" rows="4" placeholder="Enter at least 5 characters" required></textarea>
+            </div>
+            <div class="cancel-dialog-actions">
+                <button type="submit" class="danger">Confirm cancellation</button>
+                <button type="button" class="secondary" onclick="closeCustomerCancellationDialog()">Go back</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>
