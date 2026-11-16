@@ -7,15 +7,16 @@
 5. Run [`customer_order_cancellation.sql`](./customer_order_cancellation.sql) after `delivery_notifications.sql`. It adds secure customer cancellation, restores product stock, and notifies the customer, seller, and admins.
 6. Run [`seller_preapproval.sql`](./seller_preapproval.sql) after the seller marketplace migration. It creates a private pre-registration application table; only the Edge Function can access it.
 7. Run [`seller_preapplication_rate_limit.sql`](./seller_preapplication_rate_limit.sql). It adds a private, database-backed submission limit for the public application form; no CAPTCHA service or browser key is required.
-8. Link the Supabase CLI to this project, set the app URL, and deploy the seller invitation function:
+8. Link the Supabase CLI to this project, set the app URL, and deploy the seller application and delivery receipt email functions:
 
    ```sh
    supabase link --project-ref arbgxvobvvhvxdlpyllp
    supabase secrets set SITE_URL="https://johnlaurenceabuton.github.io/Farm-Fresh-/index.html"
    supabase functions deploy seller-applications
+   supabase functions deploy delivery-notifications
    ```
 
-   The seller application function uses Supabase's server-side `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. In its settings, turn **Verify JWT with legacy secret** off: the function validates its caller itself, and the public application endpoint uses server-side validation plus a five-submission-per-IP-per-hour limit. It stores only an HMAC of the request IP and removes old rate-limit rows. In **Authentication → URL Configuration**, allow the exact `index.html` URL as a redirect URL for invitation links. Set `SITE_URL` to that same deployed app URL.
+   The seller application function uses Supabase's server-side `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. In its settings, turn **Verify JWT with legacy secret** off: the function validates its caller itself, and the public application endpoint uses server-side validation plus a five-submission-per-IP-per-hour limit. It stores only an HMAC of the request IP and removes old rate-limit rows. In **Authentication → URL Configuration**, allow the exact `index.html` URL as a redirect URL for invitation links. Set `SITE_URL` to that same deployed app URL. For delivery receipt emails, configure the `RESEND_API_KEY` and `FROM_EMAIL` secrets for the `delivery-notifications` function. Supabase provides its URL and service-role key automatically.
 9. Host the site over HTTPS and open `index.html`. The Supabase project URL and publishable key are configured in the page. A publishable key is intended for browser use; never put a `service_role` or secret key in this app.
 10. Register the owner with the email address that should control the store. You can use **Create an account** on the site, or send an invitation from **Authentication → Users → Add user → Send invitation** in the Supabase dashboard. If you use an invitation, open its email link and set a password.
 11. In the Supabase SQL Editor, promote that exact account:
@@ -28,7 +29,7 @@
 
    Replace `OWNER_EMAIL_HERE` with the owner's email. Confirm one row was updated, then sign out and back in to open the Admin Control Panel.
 12. Buyers can create customer accounts. Farmers must submit a pre-registration application with their farm details and certificate (up to 5 MB) before creating an account. The owner reviews applications in the Admin Control Panel. Approval creates a seller account and emails an invitation; the farmer sets their own password from that invitation. Rejection does not create an account.
-13. Approved sellers can manage only their own products, prices, stock, and orders. Sellers control delivery status through Pending → Preparing → Ready → Delivered, and can mark a Preparing order Delivered directly when appropriate. Receipt and customer-cancellation events create in-app notifications for the customer, seller, and admins. Customers can cancel Pending, Preparing, or Ready orders by selecting a reason; the order is cancelled and its stock restored. Paid cancellations are flagged for owner refund review; no automatic refund is issued. Customers can shop from multiple farms; checkout creates one independent order per farm.
+13. Approved sellers can manage only their own products, prices, stock, and orders. Sellers control delivery status through Pending → Preparing → Ready → Delivered, and can mark a Preparing order Delivered directly when appropriate. Delivery creates in-app notifications and sends receipt emails to the customer, seller, and admins; sellers can retry receipt emails from the order card. Customer cancellations create in-app notifications only. Customers can cancel Pending, Preparing, or Ready orders by selecting a reason; the order is cancelled and its stock restored. Paid cancellations are flagged for owner refund review; no automatic refund is issued. Customers can shop from multiple farms; checkout creates one independent order per farm.
 
 The legacy browser-only accounts, inventory, and orders are not imported. Customer passwords are managed by Supabase Auth and are never saved in browser storage by this app.
 

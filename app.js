@@ -1720,6 +1720,9 @@ function renderSellerOrders() {
             </div>
             <p><strong>Total:</strong> ${order.totalQuantity}kg · ${formatCurrency(order.totalAmount)}</p>
             <p><strong>Payment:</strong> ${escapeHTML(getPaymentMethodLabel(order.paymentMethod))} — ${escapeHTML(order.paymentStatus)}</p>
+            ${order.status === "Delivered" && order.deliveryReceipt
+                ? `<button type="button" class="secondary sm" onclick="sendDeliveryReceiptEmails('${escapeHTML(order.id)}')">Retry receipt emails</button>`
+                : ""}
         </div>
     `).join("");
 }
@@ -2292,7 +2295,29 @@ async function updateOrderStatus(orderId, status) {
     if (error) return alert(`⚠️ Could not update order status: ${error.message}`);
     await refreshShopData();
     if (status === "Delivered") {
-        alert("✅ Order marked Delivered. In-app notifications were sent to the customer, seller, and owner.");
+        await sendDeliveryReceiptEmails(orderId);
+    }
+}
+
+async function sendDeliveryReceiptEmails(orderId) {
+    if (!currentUser || !isSeller || isAdmin
+        || !orders.some(order => order.id === orderId && order.sellerId === currentUser.id)) {
+        return alert("❌ Only the assigned seller can send this delivery receipt notification.");
+    }
+
+    try {
+        const { data: emailResult, error } = await supabaseClient.functions.invoke(
+            "delivery-notifications",
+            { body: { orderId } }
+        );
+        if (error) throw error;
+        alert(emailResult.alreadySent
+            ? "✅ Receipt notification emails were already sent to the customer, seller, and owner."
+            : `✅ Receipt notification emails were sent to ${emailResult.sent} account(s).`);
+    } catch (error) {
+        const message = getSupabaseFunctionErrorMessage(error);
+        console.error("Delivery receipt exists, but notification emails failed:", message, error);
+        alert(`⚠️ The in-app notifications and receipt are available, but email could not be sent: ${message}`);
     }
 }
 
