@@ -2321,6 +2321,31 @@ async function sendDeliveryReceiptEmails(orderId) {
     }
 }
 
+async function sendCustomerCancellationEmails(orderId) {
+    if (!currentUser || isAdmin
+        || !orders.some(order => order.id === orderId
+            && order.userId === currentUser.id
+            && order.status === "Cancelled"
+            && order.cancelledBy === "customer")) {
+        return alert("❌ Only the customer who cancelled this order can send its notification email.");
+    }
+
+    try {
+        const { data: emailResult, error } = await supabaseClient.functions.invoke(
+            "delivery-notifications",
+            { body: { orderId, eventType: "customer_cancellation" } }
+        );
+        if (error) throw error;
+        alert(emailResult.alreadySent
+            ? "✅ Cancellation emails were already sent to the customer, seller, and owner."
+            : `✅ Cancellation emails were sent to ${emailResult.sent} account(s).`);
+    } catch (error) {
+        const message = getSupabaseFunctionErrorMessage(error);
+        console.error("Order was cancelled, but cancellation emails failed:", message, error);
+        alert(`⚠️ Order cancellation and in-app notifications succeeded, but email could not be sent: ${message}`);
+    }
+}
+
 function renderDeliveryNotifications() {
     const list = $("delivery-notifications");
     const count = $("notification-count");
@@ -2570,6 +2595,9 @@ function renderCustomerOrders() {
                 ${["Pending", "Preparing", "Ready"].includes(order.status)
                     ? `<button type="button" class="danger sm" onclick="openCustomerOrderCancellation('${escapeHTML(order.id)}', this)">Cancel order</button>`
                     : ""}
+                ${order.status === "Cancelled" && order.cancelledBy === "customer"
+                    ? `<button type="button" class="secondary sm" onclick="sendCustomerCancellationEmails('${escapeHTML(order.id)}')">Retry cancellation emails</button>`
+                    : ""}
             </div>
         `;
     }).join("");
@@ -2663,7 +2691,7 @@ async function submitCustomerOrderCancellation(event) {
 
     closeCustomerCancellationDialog();
     await refreshShopData();
-    alert("✅ Order cancelled, stock restored, and in-app notifications were sent to the customer, seller, and owner.");
+    await sendCustomerCancellationEmails(order.id);
 }
 
 async function markItemReceived(orderId) {
