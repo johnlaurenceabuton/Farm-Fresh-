@@ -430,7 +430,7 @@ async function submitSellerPreapplication(event) {
         if (!response.ok) throw new Error(data.error || "The application could not be submitted.");
         form.reset();
         $("seller-preapplication-started-at").value = Date.now().toString();
-        alert(data.message);
+        alert(data.message || "Your application was submitted.");
         backToSellerPreapplicationLogin();
     } catch (error) {
         alert(`⚠️ Could not submit the seller application: ${error.message}`);

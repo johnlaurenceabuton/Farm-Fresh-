@@ -40,6 +40,83 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function escapeHtml(value: unknown) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function notifyAdminsOfApplication(
+  supabase: ReturnType<typeof createClient>,
+  application: { id: string; fullName: string; email: string; farmName: string },
+) {
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+  const fromEmail = Deno.env.get("FROM_EMAIL");
+  if (!resendApiKey || !fromEmail) {
+    console.error("Seller application was saved, but owner email notification secrets are not configured.");
+    return false;
+  }
+
+  const { data: admins, error: adminsError } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("role", "admin");
+  if (adminsError) {
+    console.error("Seller application was saved, but owner email recipients could not be loaded:", adminsError);
+    return false;
+  }
+
+  const recipientEmails = [...new Set(
+    (admins || [])
+      .map((admin) => typeof admin.email === "string" ? admin.email.trim() : "")
+      .filter((email) => email.length > 0),
+  )];
+  if (!recipientEmails.length) {
+    console.error("Seller application was saved, but no owner email recipients were found.");
+    return false;
+  }
+
+  const failedRecipients: string[] = [];
+  for (const recipientEmail of recipientEmails) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [recipientEmail],
+          subject: "New Farm Fresh seller application",
+          html: `
+            <h2>New seller application</h2>
+            <p>A farmer application is ready for review in the Farm Fresh Admin Control Panel.</p>
+            <p><strong>Farm:</strong> ${escapeHtml(application.farmName)}<br>
+            <strong>Applicant:</strong> ${escapeHtml(application.fullName)}<br>
+            <strong>Email:</strong> ${escapeHtml(application.email)}<br>
+            <strong>Application ID:</strong> ${escapeHtml(application.id)}</p>
+          `,
+        }),
+      });
+
+      if (!response.ok) {
+        const providerError = await response.text();
+        console.error("Resend rejected a seller application notification:", response.status, providerError);
+        failedRecipients.push(recipientEmail);
+      }
+    } catch (error) {
+      console.error("Could not send a seller application notification:", error);
+      failedRecipients.push(recipientEmail);
+    }
+  }
+
+  return failedRecipients.length === 0;
+}
+
 function requiredText(value: FormDataEntryValue | null, label: string, minLength: number, maxLength: number) {
   if (typeof value !== "string") throw new HttpError(400, `${label} is required.`);
   const text = value.trim();
@@ -181,8 +258,16 @@ async function submitApplication(
     throw new HttpError(500, "Could not save the farmer application. Please try again later.");
   }
 
+  const ownerNotificationSent = await notifyAdminsOfApplication(supabase, {
+    id: applicationId,
+    fullName,
+    email,
+    farmName,
+  });
   return jsonResponse({
-    message: "Your application is submitted. If the owner approves it, an account invitation will be sent to your email.",
+    message: ownerNotificationSent
+      ? "Your application is submitted. The owner has been notified by email. If approved, an account invitation will be sent to your email."
+      : "Your application is submitted and visible in the Admin Control Panel, but the owner email alert could not be sent. Please do not resubmit.",
   }, 201);
 }
 
