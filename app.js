@@ -85,6 +85,13 @@ let reservationDates = [];
 let orders = [];
 let deliveryNotifications = [];
 let deliveryNotificationsUnavailable = false;
+let sellerReviews = [];
+let reviewedOrderIds = new Set();
+let sellerReports = [];
+let orderFarmContacts = new Map();
+let sellerFeedbackUnavailable = false;
+let sellerReportsUnavailable = false;
+let orderFarmContactsUnavailable = false;
 let pendingCancellationOrderId = null;
 let cancellationDialogTrigger = null;
 let sellerApplication = null;
@@ -213,11 +220,40 @@ function getSupabaseFunctionErrorMessage(error) {
 /* =========================================================
    DATA MANAGEMENT
    ========================================================= */
+function isMissingDatabaseObject(error, objectName) {
+    return ["PGRST202", "PGRST205", "42P01", "42883"].includes(error?.code)
+        && String(error?.message || "").includes(objectName);
+}
+
 async function loadAllData() {
     const sellerApplicationsQuery = isAdmin
         ? supabaseClient.from("seller_applications").select("*").order("created_at", { ascending: false })
         : supabaseClient.from("seller_applications").select("*").eq("user_id", currentUser.id).order("created_at", { ascending: false });
-    const [productsResult, datesResult, ordersResult, paymentResult, sellerApplicationsResult, sellerFarmsResult, notificationsResult] = await Promise.all([
+    const isCustomerAccount = !isAdmin && !isSeller;
+    const orderFarmContactsQuery = isCustomerAccount
+        ? supabaseClient.rpc("get_my_farm_order_contacts")
+        : Promise.resolve({ data: [], error: null });
+    const reviewedOrdersQuery = isCustomerAccount
+        ? supabaseClient.rpc("get_my_seller_review_order_ids")
+        : Promise.resolve({ data: [], error: null });
+    const sellerReportsQuery = isAdmin
+        ? supabaseClient.from("seller_reports")
+            .select("id,reporter_name,reporter_email,farm_name,report_text,status,created_at")
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null });
+    const [
+        productsResult,
+        datesResult,
+        ordersResult,
+        paymentResult,
+        sellerApplicationsResult,
+        sellerFarmsResult,
+        notificationsResult,
+        sellerReviewsResult,
+        orderFarmContactsResult,
+        reviewedOrdersResult,
+        sellerReportsResult
+    ] = await Promise.all([
         supabaseClient.from("products").select("*").order("name"),
         supabaseClient.from("reservation_dates").select("available_on").order("available_on"),
         supabaseClient.from("orders").select("*").order("created_at", { ascending: false }),
@@ -226,7 +262,14 @@ async function loadAllData() {
         supabaseClient.rpc("list_public_seller_farms"),
         supabaseClient.from("delivery_notifications")
             .select("id,order_id,receipt_id,message,created_at,read_at")
+            .order("created_at", { ascending: false }),
+        supabaseClient.from("seller_reviews")
+            .select("seller_id,rating,review_text,created_at")
             .order("created_at", { ascending: false })
+            .limit(500),
+        orderFarmContactsQuery,
+        reviewedOrdersQuery,
+        sellerReportsQuery
     ]);
 
     for (const result of [productsResult, datesResult, ordersResult, paymentResult, sellerApplicationsResult]) {
@@ -241,6 +284,41 @@ async function loadAllData() {
         console.warn(
             "Delivery notifications are unavailable because public.delivery_notifications is missing. Run supabase/delivery_notifications.sql in the Supabase SQL Editor."
         );
+    }
+
+    sellerFeedbackUnavailable = false;
+    if (sellerReviewsResult.error) {
+        if (!isMissingDatabaseObject(sellerReviewsResult.error, "seller_reviews")) {
+            throw sellerReviewsResult.error;
+        }
+        sellerFeedbackUnavailable = true;
+        console.warn("Seller reviews are unavailable. Run supabase/customer_seller_feedback.sql in the Supabase SQL Editor.");
+    }
+
+    if (reviewedOrdersResult.error) {
+        if (!isMissingDatabaseObject(reviewedOrdersResult.error, "get_my_seller_review_order_ids")) {
+            throw reviewedOrdersResult.error;
+        }
+        sellerFeedbackUnavailable = true;
+        console.warn("Verified review status is unavailable. Run supabase/customer_seller_feedback.sql in the Supabase SQL Editor.");
+    }
+
+    orderFarmContactsUnavailable = false;
+    if (orderFarmContactsResult.error) {
+        if (!isMissingDatabaseObject(orderFarmContactsResult.error, "get_my_farm_order_contacts")) {
+            throw orderFarmContactsResult.error;
+        }
+        orderFarmContactsUnavailable = true;
+        console.warn("Seller transaction contacts are unavailable. Run supabase/customer_seller_feedback.sql in the Supabase SQL Editor.");
+    }
+
+    sellerReportsUnavailable = false;
+    if (sellerReportsResult.error) {
+        if (!isMissingDatabaseObject(sellerReportsResult.error, "seller_reports")) {
+            throw sellerReportsResult.error;
+        }
+        sellerReportsUnavailable = true;
+        console.warn("Seller reports are unavailable. Run supabase/customer_seller_feedback.sql in the Supabase SQL Editor.");
     }
 
     if (sellerFarmsResult.error) {
@@ -261,7 +339,8 @@ async function loadAllData() {
         sellerDirectoryWarning = false;
         sellerFarms = sellerFarmsResult.data.map(farm => ({
             id: farm.seller_id,
-            name: farm.farm_name
+            name: farm.farm_name,
+            location: farm.farm_location || ""
         }));
     }
 
@@ -301,6 +380,14 @@ async function loadAllData() {
     }));
     deliveryNotificationsUnavailable = Boolean(notificationsTableMissing);
     deliveryNotifications = notificationsTableMissing ? [] : notificationsResult.data;
+    sellerReviews = sellerReviewsResult.error ? [] : sellerReviewsResult.data;
+    orderFarmContacts = new Map(
+        (orderFarmContactsResult.data || []).map(contact => [contact.order_id, contact])
+    );
+    reviewedOrderIds = new Set(
+        (reviewedOrdersResult.data || []).map(review => review.order_id)
+    );
+    sellerReports = sellerReportsResult.error ? [] : sellerReportsResult.data;
     sellerApplications = sellerApplicationsResult.data;
     sellerApplication = sellerApplications.find(item => item.user_id === currentUser.id) || null;
     if (isAdmin) {
@@ -336,7 +423,7 @@ function getSellerFarmsFromProducts(products) {
     products.forEach(product => {
         const name = typeof product.farm_name === "string" ? product.farm_name.trim() : "";
         if (product.seller_id && !isGenericFarmName(name) && !farms.has(product.seller_id)) {
-            farms.set(product.seller_id, { id: product.seller_id, name });
+            farms.set(product.seller_id, { id: product.seller_id, name, location: "" });
         }
     });
     return Array.from(farms.values()).sort(
@@ -359,6 +446,31 @@ function getCurrentSellerFarmName() {
     if (applicationName) return applicationName;
 
     return sellerFarms.find(farm => farm.id === currentUser?.id)?.name?.trim() || "";
+}
+
+function getOrderFarmDetails(order) {
+    const savedContact = orderFarmContacts.get(order.id);
+    const directoryFarm = sellerFarms.find(farm => farm.id === order.sellerId);
+    return {
+        name: savedContact?.farm_name || order.items[0]?.farmName || directoryFarm?.name || "Farm Fresh",
+        location: savedContact?.farm_location || directoryFarm?.location || "",
+        phone: savedContact?.seller_phone || "",
+        email: savedContact?.seller_email || ""
+    };
+}
+
+function renderOrderFarmContact(order) {
+    if (!order.sellerId) return "";
+    const details = getOrderFarmDetails(order);
+    const locationLabel = order.orderType === "pickup" ? "Pickup location" : "Farm location";
+    const unavailableLabel = orderFarmContactsUnavailable
+        ? "Available after the owner applies the seller contact update"
+        : "Not provided yet";
+    return `
+        <p><strong>${locationLabel}:</strong> ${escapeHTML(details.location || unavailableLabel)}</p>
+        <p><strong>Farm phone:</strong> ${escapeHTML(details.phone || unavailableLabel)}</p>
+        <p><strong>Farm email:</strong> ${escapeHTML(details.email || unavailableLabel)}</p>
+    `;
 }
 
 function normalizeReservationDates() {
@@ -693,6 +805,7 @@ function subscribeToRealtimeUpdates() {
         .on("postgres_changes", { event: "*", schema: "public", table: "reservation_dates" }, refreshShopData)
         .on("postgres_changes", { event: "*", schema: "public", table: "payment_qrs" }, refreshShopData)
         .on("postgres_changes", { event: "*", schema: "public", table: "seller_applications" }, () => refreshShopData(true))
+        .on("postgres_changes", { event: "*", schema: "public", table: "seller_reports" }, refreshShopData)
         .subscribe((status, error) => {
             if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
                 console.error("Realtime connection failed:", error || status);
@@ -914,6 +1027,9 @@ function renderCrops() {
                         <h3 class="seller-products-title">${escapeHTML(farm.name)}</h3>
                     </div>
                 </header>
+                ${farm.sellerId
+                    ? `<p class="seller-farm-location"><strong>📍 Farm pickup location:</strong> ${escapeHTML(farm.location || "Not provided yet")}</p>`
+                    : ""}
                 ${products
                     ? `<div class="vegetable-grid">${products}</div>`
                     : '<p class="farm-no-vegetables">No vegetables are available from this farm right now.</p>'}
@@ -923,10 +1039,185 @@ function renderCrops() {
                 ${farm.crops.length
                     ? `<button type="button" class="seller-products-order" data-farm-key="${escapeHTML(farmKey)}" onclick="goToSelection(this.dataset.farmKey)">Proceed to Order →</button>`
                     : ""}
+                ${farm.sellerId ? renderSellerFeedback(farm.sellerId) : ""}
             </section>
         `;
     }).join("");
     renderFarmSearchResults();
+}
+
+function renderSellerFeedback(sellerId) {
+    const reviews = sellerReviews.filter(review => review.seller_id === sellerId);
+    const averageRating = reviews.length
+        ? reviews.reduce((total, review) => total + Number(review.rating), 0) / reviews.length
+        : 0;
+    const eligibleOrders = orders.filter(order =>
+        order.sellerId === sellerId
+        && order.userId === currentUser?.id
+        && ["Delivered", "Completed"].includes(order.status)
+        && !reviewedOrderIds.has(order.id)
+    );
+    const canSubmit = currentUser && !isAdmin && !isSeller;
+    const reviewList = reviews.length
+        ? reviews.slice(0, 5).map(review => `
+            <article class="seller-review">
+                <div class="seller-review-rating" aria-label="${Number(review.rating)} out of 5 stars">
+                    ${"★".repeat(Number(review.rating))}${"☆".repeat(5 - Number(review.rating))}
+                </div>
+                <p>${escapeHTML(review.review_text)}</p>
+                <small>Verified customer · ${escapeHTML(new Date(review.created_at).toLocaleDateString("en-PH"))}</small>
+            </article>
+        `).join("")
+        : '<p class="seller-feedback-empty">No reviews yet. Customers can review this farm after a delivered order.</p>';
+    const reviewForm = sellerFeedbackUnavailable
+        ? '<p class="seller-feedback-note">Reviews are not configured yet. Ask the owner to run the customer seller feedback migration.</p>'
+        : canSubmit && eligibleOrders.length
+            ? `
+                <form class="seller-review-form" data-seller-id="${escapeHTML(sellerId)}" onsubmit="submitSellerReview(event)">
+                    <h5>Leave feedback for this farm</h5>
+                    <label>
+                        Delivered transaction
+                        <select name="order_id" required>
+                            ${eligibleOrders.map(order => `<option value="${escapeHTML(order.id)}">${escapeHTML(order.id)}</option>`).join("")}
+                        </select>
+                    </label>
+                    <label>
+                        Rating
+                        <select name="rating" required>
+                            <option value="5">★★★★★ — Excellent</option>
+                            <option value="4">★★★★☆ — Good</option>
+                            <option value="3">★★★☆☆ — Average</option>
+                            <option value="2">★★☆☆☆ — Needs improvement</option>
+                            <option value="1">★☆☆☆☆ — Poor</option>
+                        </select>
+                    </label>
+                    <label>
+                        Your review
+                        <textarea name="review_text" minlength="5" maxlength="1000" rows="3" placeholder="Share your experience with this farm" required></textarea>
+                    </label>
+                    <button type="submit" class="sm">Submit review</button>
+                </form>
+            `
+            : canSubmit
+                ? '<p class="seller-feedback-note">Verified reviews are available after this farm delivers one of your orders.</p>'
+                : "";
+    const reportAction = sellerFeedbackUnavailable
+        ? ""
+        : canSubmit
+            ? `
+                <button type="button" class="secondary sm seller-report-toggle" data-seller-id="${escapeHTML(sellerId)}" onclick="toggleSellerReportForm(this.dataset.sellerId)">Report this seller</button>
+                <form id="seller-report-form-${escapeHTML(sellerId)}" class="seller-report-form hidden" data-seller-id="${escapeHTML(sellerId)}" onsubmit="submitSellerReport(event)">
+                    <label>
+                        Tell the owner what happened
+                        <textarea name="report_text" minlength="10" maxlength="2000" rows="4" placeholder="Describe your concern (10–2000 characters)" required></textarea>
+                    </label>
+                    <button type="submit" class="danger sm">Send report to the owner</button>
+                </form>
+            `
+            : "";
+
+    return `
+        <section class="seller-feedback" aria-label="Reviews and reports for this farm">
+            <div class="seller-feedback-heading">
+                <h4>⭐ Reviews &amp; feedback</h4>
+                <strong>${reviews.length ? `${averageRating.toFixed(1)} / 5 · ${reviews.length} review${reviews.length === 1 ? "" : "s"}` : "No ratings yet"}</strong>
+            </div>
+            <div class="seller-review-list">${reviewList}</div>
+            ${canSubmit ? reviewForm : ""}
+            ${reportAction}
+        </section>
+    `;
+}
+
+function toggleSellerReportForm(sellerId) {
+    if (!currentUser || isAdmin || isSeller) return;
+    const form = $(`seller-report-form-${sellerId}`);
+    if (!form) return;
+    const opening = form.classList.contains("hidden");
+    form.classList.toggle("hidden", !opening);
+    if (opening) form.querySelector("textarea")?.focus();
+}
+
+async function submitSellerReview(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const orderId = form.elements.order_id.value;
+    const rating = Number(form.elements.rating.value);
+    const reviewText = form.elements.review_text.value.trim();
+    const order = orders.find(item =>
+        item.id === orderId
+        && item.userId === currentUser?.id
+        && item.sellerId === form.dataset.sellerId
+        && ["Delivered", "Completed"].includes(item.status)
+    );
+    if (!currentUser || isAdmin || isSeller || !order || reviewedOrderIds.has(orderId)) {
+        return alert("Only the customer who received a farm order can review it, and each transaction can be reviewed once.");
+    }
+
+    const submitButton = form.querySelector('[type="submit"]');
+    submitButton.disabled = true;
+    try {
+        const { error } = await supabaseClient.rpc("submit_farm_fresh_seller_review", {
+            p_order_id: orderId,
+            p_rating: rating,
+            p_review_text: reviewText
+        });
+        if (error) {
+            if (isMissingDatabaseObject(error, "submit_farm_fresh_seller_review")) {
+                throw new Error("Reviews are not configured yet. Ask the owner to run supabase/customer_seller_feedback.sql.");
+            }
+            throw error;
+        }
+
+        reviewedOrderIds.add(orderId);
+        sellerReviews.unshift({
+            seller_id: order.sellerId,
+            rating,
+            review_text: reviewText,
+            created_at: new Date().toISOString()
+        });
+        renderCrops();
+        alert("✅ Thank you. Your verified farm review was submitted.");
+    } catch (error) {
+        console.error("Could not submit seller review:", error);
+        alert(`⚠️ Could not submit your review: ${error.message}`);
+    } finally {
+        submitButton.disabled = false;
+    }
+}
+
+async function submitSellerReport(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const sellerId = form.dataset.sellerId;
+    const reportText = form.elements.report_text.value.trim();
+    if (!currentUser || isAdmin || isSeller || !sellerFarms.some(farm => farm.id === sellerId)) {
+        return alert("Sign in as a customer to report a farm.");
+    }
+
+    const submitButton = form.querySelector('[type="submit"]');
+    submitButton.disabled = true;
+    try {
+        const { error } = await supabaseClient.rpc("submit_farm_fresh_seller_report", {
+            p_seller_id: sellerId,
+            p_report_text: reportText
+        });
+        if (error) {
+            if (isMissingDatabaseObject(error, "submit_farm_fresh_seller_report")) {
+                throw new Error("Seller reports are not configured yet. Ask the owner to run supabase/customer_seller_feedback.sql.");
+            }
+            throw error;
+        }
+
+        form.reset();
+        form.classList.add("hidden");
+        alert("✅ Your report was sent to the owner with this farm's name for follow-up.");
+    } catch (error) {
+        console.error("Could not submit seller report:", error);
+        alert(`⚠️ Could not send your report: ${error.message}`);
+    } finally {
+        submitButton.disabled = false;
+    }
 }
 
 function toggleFarmSearch() {
@@ -1389,20 +1680,24 @@ async function confirmOrder() {
         const paymentStatus = placedOrders[0].paymentStatus;
         const totalQuantity = placedOrders.reduce((sum, order) => sum + order.totalQuantity, 0);
         const totalAmount = placedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-        const orderReceipts = placedOrders.map(order => `
-        <section class="seller-order-receipt">
-            <h3>${order.sellerId ? `Farm: ${escapeHTML(order.items[0]?.farmName || "Seller")}` : "Farm Fresh"}</h3>
-            <p><strong>Transaction ID:</strong> ${escapeHTML(order.id)}</p>
-            <p><strong>Receipt date:</strong> ${escapeHTML(new Date(order.createdAt).toLocaleString("en-PH"))}</p>
-            <p><strong>Items:</strong></p>
-            ${order.items.map(item => `
-                • ${escapeHTML(item.cropName)}:
-                ${item.quantity}kg × ${formatCurrency(item.pricePerKg)}
-                = ${formatCurrency(item.subtotal)}
-            `).join("<br>")}
-            <p><strong>Seller order total:</strong> ${order.totalQuantity} kg — ${formatCurrency(order.totalAmount)}</p>
-        </section>
-        `).join("");
+        const orderReceipts = placedOrders.map(order => {
+            const farmDetails = getOrderFarmDetails(order);
+            return `
+                <section class="seller-order-receipt">
+                    <h3>${order.sellerId ? `Farm: ${escapeHTML(farmDetails.name)}` : "Farm Fresh"}</h3>
+                    <p><strong>Transaction ID:</strong> ${escapeHTML(order.id)}</p>
+                    <p><strong>Receipt date:</strong> ${escapeHTML(new Date(order.createdAt).toLocaleString("en-PH"))}</p>
+                    ${renderOrderFarmContact(order)}
+                    <p><strong>Items:</strong></p>
+                    ${order.items.map(item => `
+                        • ${escapeHTML(item.cropName)}:
+                        ${item.quantity}kg × ${formatCurrency(item.pricePerKg)}
+                        = ${formatCurrency(item.subtotal)}
+                    `).join("<br>")}
+                    <p><strong>Seller order total:</strong> ${order.totalQuantity} kg — ${formatCurrency(order.totalAmount)}</p>
+                </section>
+            `;
+        }).join("");
         const firstOrder = placedOrders[0];
 
         $("receipt-content").innerHTML = `
@@ -1479,6 +1774,7 @@ function showAdminPanel() {
     renderAdminPaymentQrs();
     renderAdminDates();
     renderAdminOrders();
+    renderAdminSellerReports();
     renderSellerPreapplications();
     renderSellerApplications();
 }
@@ -1542,8 +1838,57 @@ function showSellerPanel() {
     show("seller-panel");
     updateSellerViewToggle();
     renderSellerOverview();
+    renderSellerFarmLocation();
     renderSellerProducts();
     renderSellerOrders();
+}
+
+function renderSellerFarmLocation() {
+    const input = $("seller-farm-location");
+    if (input && document.activeElement !== input) {
+        input.value = sellerFarms.find(farm => farm.id === currentUser?.id)?.location || "";
+    }
+}
+
+async function saveSellerFarmLocation(event) {
+    event.preventDefault();
+    if (!currentUser || !isSeller || isAdmin) {
+        return alert("Only an approved seller can update this farm location.");
+    }
+
+    const input = $("seller-farm-location");
+    const location = input.value.trim();
+    if (!location || location.length > 300) {
+        return alert("Enter a farm pickup location with no more than 300 characters.");
+    }
+
+    const submitButton = event.currentTarget.querySelector('[type="submit"]');
+    submitButton.disabled = true;
+    try {
+        const { error } = await supabaseClient
+            .from("profiles")
+            .update({ farm_location: location })
+            .eq("id", currentUser.id)
+            .select("id")
+            .single();
+        if (error) throw error;
+
+        try {
+            await loadAllData();
+        } catch (refreshError) {
+            console.error("Farm location saved but refreshed data failed:", refreshError);
+            return alert(`✅ Farm pickup location saved, but the page could not refresh: ${refreshError.message}`);
+        }
+
+        renderSellerFarmLocation();
+        renderCrops();
+        alert("✅ Farm pickup location saved. Customers will see it in the farm listing and their order details.");
+    } catch (error) {
+        console.error("Could not save farm pickup location:", error);
+        alert(`⚠️ Could not save farm pickup location: ${error.message}`);
+    } finally {
+        submitButton.disabled = false;
+    }
 }
 
 function renderSellerOverview() {
@@ -1563,6 +1908,60 @@ function renderSellerOverview() {
         <article><strong>${openOrders.length}</strong><span>Open orders</span></article>
         <article><strong>${productCount}</strong><span>Listed products</span></article>
     `;
+}
+
+function renderAdminSellerReports() {
+    const container = $("seller-reports");
+    if (!container || !isAdmin) return;
+    if (sellerReportsUnavailable) {
+        container.innerHTML = '<p class="empty-message">Seller reports are not configured. Run supabase/customer_seller_feedback.sql in the Supabase SQL Editor.</p>';
+        return;
+    }
+    if (!sellerReports.length) {
+        container.innerHTML = '<p class="empty-message">No customer reports have been submitted.</p>';
+        return;
+    }
+
+    container.innerHTML = sellerReports.map(report => `
+        <article class="seller-report-card">
+            <div class="seller-report-heading">
+                <strong>${escapeHTML(report.farm_name)}</strong>
+                <span class="status-pill">${escapeHTML(report.status)}</span>
+            </div>
+            <p><strong>Reported by:</strong> ${escapeHTML(report.reporter_name)}${report.reporter_email ? ` · <a href="mailto:${escapeHTML(report.reporter_email)}">${escapeHTML(report.reporter_email)}</a>` : ""}</p>
+            <p><strong>Submitted:</strong> ${escapeHTML(new Date(report.created_at).toLocaleString("en-PH"))}</p>
+            <p class="seller-report-text">${escapeHTML(report.report_text)}</p>
+            <button type="button" class="secondary sm" onclick="updateSellerReportStatus('${escapeHTML(report.id)}', '${report.status === "resolved" ? "open" : "resolved"}')">
+                ${report.status === "resolved" ? "Reopen report" : "Mark resolved"}
+            </button>
+        </article>
+    `).join("");
+}
+
+async function updateSellerReportStatus(reportId, status) {
+    if (!currentUser || !isAdmin || !["open", "resolved"].includes(status)) {
+        return alert("Only an administrator can update a seller report.");
+    }
+    const report = sellerReports.find(item => item.id === reportId);
+    if (!report) return alert("This seller report is no longer available. Refresh the admin panel.");
+
+    try {
+        const { error } = await supabaseClient.rpc("update_farm_fresh_seller_report_status", {
+            p_report_id: reportId,
+            p_status: status
+        });
+        if (error) {
+            if (isMissingDatabaseObject(error, "update_farm_fresh_seller_report_status")) {
+                throw new Error("Seller reports are not configured yet. Ask the owner to run supabase/customer_seller_feedback.sql.");
+            }
+            throw error;
+        }
+        report.status = status;
+        renderAdminSellerReports();
+    } catch (error) {
+        console.error("Could not update seller report status:", error);
+        alert(`⚠️ Could not update seller report: ${error.message}`);
+    }
 }
 
 function renderSellerProducts() {
@@ -2566,6 +2965,7 @@ function renderCustomerOrders() {
 
     container.innerHTML = myOrders.map(order => {
         const receipt = order.deliveryReceipt;
+        const farmDetails = getOrderFarmDetails(order);
 
         return `
             <div class="customer-order-card">
@@ -2577,7 +2977,8 @@ function renderCustomerOrders() {
                 <p><strong>Order Type:</strong> ${escapeHTML(
                     CONFIG.orderTypes[order.orderType]?.label || order.orderType
                 )}</p>
-                <p><strong>Farm:</strong> ${escapeHTML(order.items[0]?.farmName || "Farm Fresh")}</p>
+                <p><strong>Farm:</strong> ${escapeHTML(farmDetails.name)}</p>
+                ${renderOrderFarmContact(order)}
                 <p><strong>Date:</strong> ${escapeHTML(order.reservationDate)}</p>
                 <p><strong>Payment Method:</strong> ${escapeHTML(getPaymentMethodLabel(order.paymentMethod))}</p>
                 <p><strong>Payment Status:</strong> ${escapeHTML(order.paymentStatus || "Not recorded")}</p>

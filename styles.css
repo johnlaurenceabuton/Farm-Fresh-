@@ -647,6 +647,29 @@
             font-size: 14px;
         }
 
+        .seller-farm-settings {
+            padding: 14px 16px;
+            border: 1px solid #cfd9ca;
+            border-radius: 12px;
+            background: #f7fbf5;
+        }
+
+        #seller-location-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: end;
+            gap: 8px;
+        }
+
+        #seller-location-form label {
+            grid-column: 1 / -1;
+            margin-bottom: 0;
+        }
+
+        #seller-location-form input {
+            margin: 0;
+        }
+
         .seller-application-card {
             border: 1px solid #cfd9ca;
             border-radius: 12px;
@@ -857,6 +880,17 @@
             font-size: 25px;
             font-weight: 800;
             line-height: 1.2;
+            overflow-wrap: anywhere;
+        }
+
+        .seller-farm-location {
+            margin: 0 0 16px;
+            padding: 10px 12px;
+            border-left: 3px solid #78a96c;
+            border-radius: 6px;
+            background: #f5faf2;
+            color: #43563e;
+            line-height: 1.5;
             overflow-wrap: anywhere;
         }
 
@@ -1601,6 +1635,98 @@
             margin: 12px 0;
             background: rgba(255,255,255,.96);
         }
+
+        .seller-feedback {
+            display: grid;
+            gap: 12px;
+            margin-top: 16px;
+            padding: 14px;
+            border: 1px solid #d5dfd0;
+            border-radius: 10px;
+            background: #f7fbf5;
+        }
+
+        .seller-feedback-heading,
+        .seller-report-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .seller-feedback-heading h4 {
+            margin: 0;
+        }
+
+        .seller-review-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .seller-review,
+        .seller-report-card {
+            padding: 12px;
+            border: 1px solid #d5dfd0;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .seller-review-rating {
+            color: #a56800;
+            font-weight: 700;
+        }
+
+        .seller-review p,
+        .seller-report-text {
+            margin: 6px 0;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .seller-review small {
+            color: #666;
+        }
+
+        .seller-feedback form {
+            display: grid;
+            gap: 8px;
+        }
+
+        .seller-feedback textarea {
+            display: block;
+            width: 100%;
+            min-height: 76px;
+            margin-top: 5px;
+            padding: 10px;
+            border: 1px solid #b8c7b2;
+            border-radius: 8px;
+            resize: vertical;
+        }
+
+        .seller-feedback-empty,
+        .seller-feedback-note {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .seller-report-card {
+            margin: 12px 0;
+        }
+
+        .seller-report-heading {
+            margin-bottom: 8px;
+        }
+
+        .seller-report-card p {
+            margin: 6px 0;
+            overflow-wrap: anywhere;
+        }
+
+        .seller-report-card a {
+            color: #27682b;
+        }
+
         .customer-order-head {
             display: flex;
             justify-content: space-between;
@@ -1616,6 +1742,16 @@
             color: #2d6b2d;
             font-weight: 700;
             font-size: 13px;
+        }
+
+        @media (max-width: 560px) {
+            #seller-location-form {
+                grid-template-columns: 1fr;
+            }
+
+            #seller-location-form label {
+                grid-column: auto;
+            }
         }
 
         #cancel-reason-options {

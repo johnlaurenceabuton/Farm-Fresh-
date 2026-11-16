@@ -79,7 +79,7 @@
         <input type="text" name="full_name" placeholder="Full Name" autocomplete="name" maxlength="120" required>
         <input type="email" name="email" placeholder="Email Address" autocomplete="email" maxlength="254" required>
         <input type="tel" name="phone" placeholder="Phone Number" autocomplete="tel" maxlength="40" required>
-        <input type="text" name="address" placeholder="Address" autocomplete="street-address" maxlength="300" required>
+        <input type="text" name="address" placeholder="Contact / Account Address" autocomplete="street-address" maxlength="300" required>
         <input type="text" name="farm_name" placeholder="Farm name" maxlength="100" required>
         <textarea name="farm_description" placeholder="Tell us about your farm (optional)" maxlength="1000" rows="4"></textarea>
         <div class="seller-preapplication-honeypot" aria-hidden="true">
@@ -124,6 +124,15 @@
     <span class="admin-badge">✅ APPROVED SELLER — Your farm's inventory and orders only</span>
     <p class="note">Changes affect only your products. Orders containing multiple farms are split at checkout, and you manage the delivery status for your farm's orders.</p>
     <div id="seller-overview" class="seller-overview" aria-live="polite"></div>
+    <section class="seller-farm-settings">
+        <h3>📍 Farm Pickup Location</h3>
+        <p class="note">Customers see this address when choosing pickup and in their transaction details.</p>
+        <form id="seller-location-form" onsubmit="saveSellerFarmLocation(event)">
+            <label for="seller-farm-location">Farm address</label>
+            <input id="seller-farm-location" type="text" maxlength="300" autocomplete="street-address" required>
+            <button type="submit" class="secondary sm">Save Pickup Location</button>
+        </form>
+    </section>
     <h3>➕ Add Farm Product</h3>
     <form id="seller-add-crop-form" class="add-crop-form" onsubmit="addSellerCrop(event)">
         <input type="text" id="seller-new-crop-name" placeholder="Product name" maxlength="60" required>
@@ -318,6 +327,12 @@
     <h3>🧾 Delivery Receipts</h3>
     <p class="note">Only delivery receipts appear here. Sellers manage their own orders and mark them delivered to issue a receipt.</p>
     <div id="admin-orders"></div>
+
+    <hr>
+
+    <h3>🚩 Customer Seller Reports</h3>
+    <p class="note">Review reports with the farm name and customer details, then mark them resolved or reopen them.</p>
+    <div id="seller-reports"></div>
 
     <hr>
 
