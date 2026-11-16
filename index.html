@@ -199,6 +199,7 @@
 
     <div id="crops-list" class="seller-products-list"></div>
 
+    <p class="note">Use a farm's button to order from that farm, or continue below to combine vegetables from multiple farms.</p>
     <button onclick="goToSelection()">Next: Select Vegetables & Quantity →</button>
     <button class="secondary" onclick="showCustomerOrders()">📦 My Orders & Deliveries</button>
 </section>
@@ -213,6 +214,7 @@
 <section id="order-section" class="card hidden">
     <h2>🛒 Selected Crops & Quantity</h2>
     <div id="selected-items"></div>
+    <button type="button" class="secondary" onclick="backToBrowseFromSelection()">← Back to Shop to add or adjust vegetables</button>
 
     <h3>Choose Order Option</h3>
     <div id="order-options"></div>

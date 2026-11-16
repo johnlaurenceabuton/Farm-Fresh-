@@ -920,6 +920,9 @@ function renderCrops() {
                 ${farm.crops.length > 5
                     ? `<button class="secondary seller-products-more" onclick="toggleFarmProducts(this)" aria-expanded="false">View more</button>`
                     : ""}
+                ${farm.crops.length
+                    ? `<button type="button" class="seller-products-order" data-farm-key="${escapeHTML(farmKey)}" onclick="goToSelection(this.dataset.farmKey)">Proceed to Order →</button>`
+                    : ""}
             </section>
         `;
     }).join("");
@@ -1013,10 +1016,19 @@ function getVegetableIcon(id) {
     return icons[id] || "🥦";
 }
 
-function goToSelection() {
+function goToSelection(farmKey = null) {
+    const farmSection = farmKey
+        ? Array.from(document.querySelectorAll("#crops-list .seller-products-section"))
+            .find(section => section.dataset.farmKey === farmKey)
+        : null;
+    if (farmKey && !farmSection) return alert("Could not find this farm. Refresh the shop and try again.");
+
     selectedCrops = [];
 
-    document.querySelectorAll(".qty-input").forEach(input => {
+    const quantityInputs = farmSection
+        ? farmSection.querySelectorAll(".qty-input")
+        : document.querySelectorAll("#crops-list .qty-input");
+    quantityInputs.forEach(input => {
         const crop = crops.find(item => item.id === input.dataset.id);
         const quantity = Math.floor(Number(input.value));
 
@@ -1035,7 +1047,9 @@ function goToSelection() {
     });
 
     if (!selectedCrops.length) {
-        return alert("⚠️ Select at least one crop.");
+        return alert(farmKey
+            ? "⚠️ Select at least one vegetable from this farm."
+            : "⚠️ Select at least one crop.");
     }
 
     renderSelectedItems();
@@ -1054,6 +1068,25 @@ function goToSelection() {
 
     hide("browse-section");
     show("order-section");
+}
+
+function backToBrowseFromSelection() {
+    const quantities = new Map(
+        Array.from(document.querySelectorAll("#crops-list .qty-input"))
+            .map(input => [input.dataset.id, input.value])
+    );
+
+    hide("order-section");
+    showBrowse();
+    document.querySelectorAll("#crops-list .qty-input").forEach(input => {
+        if (quantities.has(input.dataset.id)) {
+            input.value = quantities.get(input.dataset.id);
+        }
+    });
+    $("browse-section").scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start"
+    });
 }
 
 function renderSelectedItems() {
